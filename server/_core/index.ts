@@ -66,6 +66,8 @@ async function startServer() {
       const normalized = normalizeOrderItems(submittedItems, store.menu, cleanText);
       if (normalized.error) return { error: normalized.error };
       const foodTotal = normalized.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+      const minimumDeliveryOrder = Number(store.settings.matamly_min_order || process.env.MIN_ORDER_KWD || 3);
+      if (body.serviceMode === "التوصيل" && foodTotal < minimumDeliveryOrder) return { error: `الحد الأدنى للتوصيل هو ${minimumDeliveryOrder.toFixed(3)} د.ك` };
       const id = `ORD-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
       const order = {
         customer: { name, phone },
