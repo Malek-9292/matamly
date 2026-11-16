@@ -1,0 +1,16 @@
+services:
+  matamly:
+    build: .
+    container_name: matamly-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      MATAMLY_DATA_FILE: /app/data/matamly.json
+    volumes:
+      - matamly-data:/app/data
+volumes:
+  matamly-data:

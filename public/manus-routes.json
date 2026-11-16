@@ -1,1 +1,20 @@
-{"routes":[{"path":"/","title":"المطعم"},{"path":"/admin","title":"لوحة الإدارة"}]}
+{
+  "routes": [
+    {
+      "path": "/",
+      "title": "المطعم"
+    },
+    {
+      "path": "/admin",
+      "title": "لوحة الإدارة"
+    },
+    {
+      "path": "/cashier",
+      "title": "الكاشير"
+    },
+    {
+      "path": "/management",
+      "title": "المخزون والتقارير"
+    }
+  ]
+}
