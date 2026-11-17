@@ -1,14 +1,65 @@
-# مطعمي — الطلب المباشر
+# مطعمي — فتوش الخالدية
 
-React / Express / tRPC / Drizzle starter, adapted from the Sandbox web-db-user template.
+Restaurant ordering system for pickup and delivery. Customers submit orders to the server. Cashiers see the same orders, and a separate local print agent sends receipts through the operating system's installed printer.
 
-- `pnpm dev`: development server; honors `PORT` (default 3000).
-- `pnpm build` / `pnpm start`: build and serve `dist/index.js` and `dist/public/`.
-- `pnpm db:migrate`: apply checked-in migrations. `pnpm db:push`: generate and apply new schema changes.
-- `pnpm check` / `pnpm test`: types and application tests.
+## Run locally
 
-Start with the Webdev skill's default-template guide. Platform login, storage, payments and service contracts live in its shared references; read the relevant capability before extending its helper.
+1. Install Node.js 22 or newer and MySQL 8 or MariaDB.
+2. Create a database named `matamly`.
+3. Copy `.env.example` to `.env` and replace every placeholder. Use a different admin password, cashier password, and print token.
+4. Install dependencies:
 
-`server/_core/publicConfig.ts` exposes only named public runtime values. Private keys stay server-side. The platform serves managed `/manus-storage/` assets; the application does not register a second proxy.
+```text
+corepack enable
+corepack prepare pnpm@10.18.0 --activate
+corepack pnpm install
+```
 
-Platform configuration is readable and editable through `webdev.config`. Default settings are initial values, not enforced constraints. The agent may modify the files, commands and configuration or follow the flexible guide for another stack.
+On Windows, `corepack enable` can fail without administrator rights. `corepack pnpm` still works after `corepack prepare`.
+
+5. Apply the schema and import `data/matamly.json` when that file exists:
+
+```text
+pnpm db:migrate
+```
+
+The server also does this on startup. The import runs once. Existing menu products, settings, inventory, expenses, and orders in that JSON file are copied. When no JSON file exists, the 133 products already stored in the project are loaded, and the restaurant's existing delivery-area list is loaded with its current fees. No sample prices are added.
+
+6. Start the app:
+
+```text
+pnpm dev
+```
+
+Open `http://localhost:3000`. Admin: `/admin`. Cashier: `/cashier`. Inventory and reports: `/management`.
+
+Production:
+
+```text
+pnpm build
+pnpm start
+```
+
+Docker Compose starts MySQL and the app after `.env` is filled in:
+
+```text
+docker compose up -d --build
+```
+
+## Printing
+
+Order processing never talks to a printer brand. It stores a print job. `print-agent/README.md` explains how to run the local agent on the cashier computer. The agent uses the operating system's default printer, or `PRINTER_NAME` when another installed printer should be used. A job is marked printed only after that agent reports success. The cashier page can also open the system print dialog; that dialog alone does not mark the order printed.
+
+## Checks
+
+```text
+pnpm check
+pnpm test
+pnpm build
+```
+
+Set `DATABASE_URL` before `pnpm test` to run the database integration test. Without it, that test is skipped and the result says so.
+
+## Data safety
+
+Do not commit `.env` or `data/matamly.json`. Customer orders live in MySQL after migration. Keep a backup of the database and of the original JSON file until the first orders have been checked in the cashier screen.

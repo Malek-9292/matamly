@@ -6,7 +6,8 @@ import {
 
 type OrderItem = { name: string; qty: number; price: number; choices?: string[] };
 type Order = {
-  id: string;
+  id: number;
+  orderNumber: number;
   createdAt: string;
   customer: { name: string; phone: string };
   items: OrderItem[];
@@ -17,12 +18,18 @@ type Order = {
   address: string;
   notes: string;
   payment: string;
-  status: "new" | "processing" | "printed" | "cancelled";
+  serviceMode: "pickup" | "delivery";
+  status: "new" | "processing" | "ready" | "completed" | "cancelled";
+  printStatus: "pending" | "printing" | "printed" | "failed" | "none";
+  printError: string;
 };
-type Filter = "all" | "new" | "processing" | "cancelled";
+type Filter = "all" | Order["status"];
 const money = (n: number) => `${Number(n || 0).toFixed(3)} د.ك`;
 const statusLabels: Record<Order["status"], string> = {
-  new: "طلب جديد", processing: "قيد التجهيز", printed: "تمت المعالجة", cancelled: "ملغي",
+  new: "جديد", processing: "قيد التجهيز", ready: "جاهز", completed: "مكتمل", cancelled: "ملغي",
+};
+const printLabels: Record<Order["printStatus"], string> = {
+  pending: "بانتظار الطباعة", printing: "جارٍ الإرسال للطابعة", printed: "تم تأكيد الطباعة", failed: "فشلت الطباعة", none: "بدون مهمة طباعة",
 };
 
 export default function Cashier() {
@@ -32,14 +39,15 @@ export default function Cashier() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
-  const [printId, setPrintId] = useState<string | null>(null);
+  const [printId, setPrintId] = useState<number | null>(null);
   const [sound, setSound] = useState(() => localStorage.getItem("matamly_cashier_sound") !== "0");
   const [error, setError] = useState("");
 
   const playNewOrder = () => {
     if (!sound) return;
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
       const ctx = new AudioContextClass();
       [660, 880].forEach((frequency, index) => {
         const oscillator = ctx.createOscillator();
@@ -70,15 +78,15 @@ export default function Cashier() {
         return next;
       });
       setError("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ أثناء تحميل الطلبات");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "الخادم غير متاح");
     } finally { setLoading(false); }
   }, [sound]);
 
-  const login = async (e: React.FormEvent) => {
-    e.preventDefault(); setError("");
+  const login = async (event: React.FormEvent) => {
+    event.preventDefault(); setError("");
     try {
-      const response = await fetch("/api/admin/login", {
+      const response = await fetch("/api/cashier/login", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }),
       });
       if (response.ok) { setAuthed(true); setPassword(""); }
@@ -87,7 +95,7 @@ export default function Cashier() {
   };
 
   useEffect(() => {
-    fetch("/api/admin/session", { cache: "no-store" }).then(r => r.json()).then(x => setAuthed(Boolean(x.ok))).catch(() => setAuthed(false));
+    fetch("/api/staff/session", { cache: "no-store" }).then(r => r.json()).then(x => setAuthed(Boolean(x.ok))).catch(() => setAuthed(false));
   }, []);
   useEffect(() => {
     if (!authed) return;
@@ -103,46 +111,62 @@ export default function Cashier() {
     return () => { window.clearTimeout(timer); window.removeEventListener("afterprint", afterPrint); };
   }, [printId]);
 
-  const updateStatus = async (id: string, status: Order["status"]) => {
+  const updateStatus = async (id: number, status: Order["status"]) => {
     try {
-      const response = await fetch(`/api/orders/${encodeURIComponent(id)}`, {
+      const response = await fetch(`/api/orders/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }),
       });
-      if (!response.ok) throw new Error("لم يتم تحديث حالة الطلب");
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "لم يتم تحديث حالة الطلب");
       await load(true);
-    } catch (e) { setError(e instanceof Error ? e.message : "تعذر تحديث الطلب"); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر تحديث الطلب"); }
+  };
+  const reprint = async (id: number) => {
+    try {
+      const response = await fetch(`/api/orders/${id}/reprint`, { method: "POST" });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "تعذرت إعادة الطباعة");
+      await load(true);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذرت إعادة الطباعة"); }
   };
 
   const counts = useMemo(() => ({
     all: orders.length,
     new: orders.filter(o => o.status === "new").length,
     processing: orders.filter(o => o.status === "processing").length,
+    ready: orders.filter(o => o.status === "ready").length,
+    completed: orders.filter(o => o.status === "completed").length,
     cancelled: orders.filter(o => o.status === "cancelled").length,
   }), [orders]);
   const visibleOrders = useMemo(() => orders.filter(order => {
     const matchesFilter = filter === "all" || order.status === filter;
     const query = search.trim().toLocaleLowerCase("ar");
-    const matchesSearch = !query || [order.customer.name, order.customer.phone, order.id, order.zone].some(value => String(value || "").toLocaleLowerCase("ar").includes(query));
+    const matchesSearch = !query || [order.customer.name, order.customer.phone, String(order.orderNumber), order.zone].some(value => String(value || "").toLocaleLowerCase("ar").includes(query));
     return matchesFilter && matchesSearch;
   }), [orders, filter, search]);
-  const todayTotal = orders.filter(o => o.status !== "cancelled" && new Date(o.createdAt).toDateString() === new Date().toDateString()).reduce((sum, o) => sum + Number(o.total || 0), 0);
 
-  if (!authed) return <div className="admin-login"><div className="login-card"><div className="login-logo"><LockKeyhole /></div><span className="eyebrow">نقطة الكاشير</span><h1>تسجيل دخول الكاشير</h1><p>استخدم كلمة مرور لوحة الإدارة لعرض الطلبات ومتابعتها.</p><form onSubmit={login}><label>كلمة المرور<input autoFocus type="password" value={password} onChange={e => setPassword(e.target.value)} required /></label>{error && <p className="cashier-error">{error}</p>}<button className="primary-btn wide">دخول الكاشير</button></form><a href="/" className="back-link">العودة للموقع</a></div></div>;
+  if (!authed) return <div className="admin-login"><div className="login-card"><div className="login-logo"><LockKeyhole /></div><span className="eyebrow">نقطة الكاشير</span><h1>تسجيل دخول الكاشير</h1><p>استخدم كلمة مرور الكاشير. كلمة مرور الإدارة تعمل هنا أيضاً، لكنها لا تمنح الكاشير صلاحية تعديل المنيو أو الأسعار.</p><form onSubmit={login}><label>كلمة المرور<input autoFocus type="password" value={password} onChange={e => setPassword(e.target.value)} required /></label>{error && <p className="cashier-error">{error}</p>}<button className="primary-btn wide">دخول الكاشير</button></form><a href="/" className="back-link">العودة للموقع</a></div></div>;
 
   return <div className="cashier-shell">
-    <header className="cashier-header"><div><span className="eyebrow">نقطة الكاشير · تحديث تلقائي كل 4 ثوانٍ</span><h1>إدارة الطلبات</h1><p className="cashier-header-sub">تابع الطلبات الجديدة وجهّزها واطبع تذاكر المطبخ.</p></div><div className="cashier-header-actions"><button className="outline-btn" onClick={() => { const next = !sound; setSound(next); localStorage.setItem("matamly_cashier_sound", next ? "1" : "0"); }} title="تنبيه الطلبات">{sound ? <Volume2 size={16}/> : <VolumeX size={16}/>} {sound ? "الصوت يعمل" : "الصوت مغلق"}</button><button className="outline-btn" onClick={() => void load()}><RefreshCw size={16} className={loading ? "cashier-spin" : ""}/> {loading ? "تحديث..." : "تحديث"}</button></div></header>
+    <header className="cashier-header"><div><span className="eyebrow">نقطة الكاشير · تحديث تلقائي كل 4 ثوانٍ</span><h1>إدارة الطلبات</h1><p className="cashier-header-sub">الطلبات تبقى في السجل بعد التجهيز والطباعة.</p></div><div className="cashier-header-actions"><button className="outline-btn" onClick={() => { const next = !sound; setSound(next); localStorage.setItem("matamly_cashier_sound", next ? "1" : "0"); }}>{sound ? <Volume2 size={16}/> : <VolumeX size={16}/>} {sound ? "الصوت يعمل" : "الصوت مغلق"}</button><button className="outline-btn" onClick={() => void load()}><RefreshCw size={16} className={loading ? "cashier-spin" : ""}/> {loading ? "تحديث..." : "تحديث"}</button></div></header>
     <main className="cashier-main cashier-dashboard">
-      <section className="cashier-summary"><div><span>كل الطلبات الظاهرة</span><strong>{counts.all}</strong></div><div><span>طلبات جديدة</span><strong>{counts.new}</strong></div><div><span>قيد التجهيز</span><strong>{counts.processing}</strong></div><div><span>إجمالي اليوم غير الملغي</span><strong>{money(todayTotal)}</strong></div></section>
       {error && <div className="cashier-error"><XCircle size={17}/>{error}</div>}
       <section className="cashier-toolbar"><div className="cashier-filters">
-        {([ ["all", "الكل"], ["new", "جديدة"], ["processing", "قيد التجهيز"], ["cancelled", "ملغاة"] ] as [Filter, string][]).map(([key, label]) => <button key={key} className={filter === key ? "active" : ""} onClick={() => setFilter(key)}>{label}<b>{counts[key]}</b></button>)}
+        {([["all", "السجل"], ["new", "جديدة"], ["processing", "تجهيز"], ["ready", "جاهزة"], ["completed", "مكتملة"], ["cancelled", "ملغاة"]] as [Filter, string][]).map(([key, label]) => <button key={key} className={filter === key ? "active" : ""} onClick={() => setFilter(key)}>{label}<b>{counts[key]}</b></button>)}
       </div><label className="cashier-search"><Search size={17}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث بالاسم أو الهاتف أو رقم الطلب" /></label></section>
-      {visibleOrders.length === 0 ? <div className="cashier-empty"><Check size={42}/><h2>{orders.length ? "لا توجد نتائج مطابقة" : "لا توجد طلبات حالياً"}</h2><p>{orders.length ? "جرّب تغيير حالة الطلب أو كلمة البحث." : "ستظهر الطلبات الجديدة هنا تلقائياً عند وصولها."}</p></div> : visibleOrders.map(order => <article className={`cashier-order ${order.status} ${printId && printId !== order.id ? "print-hidden" : ""}`} key={order.id}>
-        <div className="order-head"><div><span className="eyebrow">طلب #{order.id.slice(-8)}</span><h2>{order.customer.name}</h2><p><Clock3 size={13}/> {new Date(order.createdAt).toLocaleString("ar-KW")} · {order.customer.phone}</p></div><span className={`order-status status-${order.status}`}>{statusLabels[order.status]}</span></div>
-        <div className="order-items">{order.items.map((item, i) => <div className="cashier-item" key={`${order.id}-${i}`}><div><strong>{item.qty} × {item.name}</strong>{item.choices?.length ? <small>{item.choices.join("، ")}</small> : null}</div><span>{money(item.price * item.qty)}</span></div>)}</div>
-        <div className="order-meta"><span>المنطقة: {order.zone || "—"}</span><span>{order.address || "بدون عنوان"}</span>{order.notes && <span>ملاحظات: {order.notes}</span>}</div>
+      {visibleOrders.length === 0 ? <div className="cashier-empty"><Check size={42}/><h2>{orders.length ? "لا توجد نتائج مطابقة" : "لا توجد طلبات حالياً"}</h2></div> : visibleOrders.map(order => <article className={`cashier-order ${order.status} ${printId && printId !== order.id ? "print-hidden" : ""}`} key={order.id}>
+        <div className="order-head"><div><span className="eyebrow">طلب رقم {order.orderNumber}</span><h2>{order.customer.name}</h2><p><Clock3 size={13}/> {new Date(order.createdAt).toLocaleString("ar-KW")} · {order.customer.phone}</p></div><span className={`order-status status-${order.status}`}>{statusLabels[order.status]}</span></div>
+        <div className="order-meta"><strong>{order.serviceMode === "delivery" ? "توصيل" : "استلام من المطعم"}</strong>{order.serviceMode === "delivery" && <span>{order.zone || "بدون منطقة"} · {order.address || "بدون عنوان"}</span>}{order.notes && <span>ملاحظات: {order.notes}</span>}<span className={`print-state print-${order.printStatus}`}>{printLabels[order.printStatus]}{order.printError ? ` — ${order.printError}` : ""}</span></div>
+        <div className="order-items">{order.items.map((item, index) => <div className="cashier-item" key={`${order.id}-${index}`}><div><strong>{item.qty} × {item.name}</strong>{item.choices?.length ? <small>{item.choices.join("، ")}</small> : null}</div><span>{money(item.price * item.qty)}</span></div>)}</div>
         <div className="order-total"><div><span>الطعام {money(order.foodTotal)}</span><span>التوصيل {money(order.deliveryFee)}</span><span>الدفع: {order.payment || "عند الاستلام"}</span></div><strong>{money(order.total)}</strong></div>
-        <div className="order-actions"><button className="outline-btn" onClick={() => setPrintId(order.id)}><Printer size={17}/> طباعة التذكرة</button>{order.status === "new" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "processing")}><ChefHat size={17}/> بدء التجهيز</button>}{order.status === "processing" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "printed")}><Check size={17}/> تمت المعالجة</button>}{order.status !== "cancelled" && <button className="cashier-cancel-btn" onClick={() => { if (window.confirm("هل تريد إلغاء هذا الطلب؟")) void updateStatus(order.id, "cancelled"); }}><XCircle size={16}/> إلغاء</button>}</div>
+        <div className="order-actions">
+          <button className="outline-btn" onClick={() => void reprint(order.id)}><Printer size={17}/> إعادة طباعة</button>
+          <button className="outline-btn" onClick={() => setPrintId(order.id)}>طباعة عبر نظام التشغيل</button>
+          {order.status === "new" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "processing")}><ChefHat size={17}/> بدء التجهيز</button>}
+          {order.status === "processing" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "ready")}>جاهز</button>}
+          {order.status === "ready" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "completed")}><Check size={17}/> مكتمل</button>}
+          {order.status !== "cancelled" && order.status !== "completed" && <button className="cashier-cancel-btn" onClick={() => { if (window.confirm("هل تريد إلغاء هذا الطلب؟")) void updateStatus(order.id, "cancelled"); }}><XCircle size={16}/> إلغاء</button>}
+        </div>
       </article>)}
     </main>
   </div>;

@@ -10,4 +10,4 @@ CREATE TABLE IF NOT EXISTS `users` (
 	`lastSignedIn` timestamp NOT NULL DEFAULT (now()),
 	CONSTRAINT `users_id` PRIMARY KEY(`id`),
 	CONSTRAINT `users_openId_unique` UNIQUE(`openId`)
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
