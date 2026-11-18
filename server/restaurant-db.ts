@@ -78,6 +78,10 @@ export async function migrate(db = getPool()) {
     await applySqlFile(db, "0001_restaurant.sql");
     await db.query("INSERT INTO schema_migrations (id) VALUES ('0001_restaurant')");
   }
+  if (!(await applied(db, "0002_product_ratings"))) {
+    await applySqlFile(db, "0002_product_ratings.sql");
+    await db.query("INSERT INTO schema_migrations (id) VALUES ('0002_product_ratings')");
+  }
   for (const table of ["users", "schema_migrations", "app_settings", "documents", "delivery_areas", "delivery_groups", "delivery_group_areas", "order_counters", "orders", "order_items", "print_jobs", "staff_sessions"]) {
     await db.query(`ALTER TABLE \`${table}\` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
   }
@@ -557,3 +561,44 @@ export async function deleteStaffSession(token: string) {
 }
 
 export { rows };
+
+
+export async function getProductRatingSummary() {
+  const [found] = await getPool().query<RowDataPacket[]>(
+    "SELECT productId, ROUND(AVG(rating), 1) AS average, COUNT(*) AS count FROM product_ratings GROUP BY productId",
+  );
+  return found.map((row) => ({ productId: String(row.productId), average: Number(row.average), count: Number(row.count) }));
+}
+
+export async function submitProductRating(input: { orderNumber: number; phone: string; productId: string; rating: number }) {
+  if (!Number.isInteger(input.orderNumber) || input.orderNumber < 1) throw new RestaurantError("رقم الطلب غير صحيح");
+  if (!/^\\+?[0-9\\s-]{7,20}$/.test(input.phone)) throw new RestaurantError("رقم الهاتف غير صحيح");
+  if (!/^\\d+$/.test(input.productId) || !Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) throw new RestaurantError("التقييم غير صحيح");
+  const db = getPool();
+  const [orders] = await db.query<RowDataPacket[]>(
+    "SELECT id, status FROM orders WHERE orderNumber = ? AND customerPhone = ? LIMIT 1",
+    [input.orderNumber, input.phone.trim()],
+  );
+  if (!orders.length) throw new RestaurantError("لم يتم العثور على الطلب بهذه البيانات", 404);
+  if (orders[0].status !== "completed") throw new RestaurantError("يمكن تقييم الأصناف بعد استلام الطلب فقط");
+  const orderId = Number(orders[0].id);
+  const [items] = await db.query<RowDataPacket[]>(
+    "SELECT id FROM order_items WHERE orderId = ? AND productId = ? LIMIT 1",
+    [orderId, input.productId],
+  );
+  if (!items.length) throw new RestaurantError("هذا الصنف غير موجود في الطلب", 403);
+  try {
+    await db.query(
+      "INSERT INTO product_ratings (orderId, productId, rating, createdAt) VALUES (?, ?, ?, ?)",
+      [orderId, input.productId, input.rating, new Date()],
+    );
+  } catch (error) {
+    if ((error as { code?: string }).code === "ER_DUP_ENTRY") throw new RestaurantError("سبق تقييم هذا الصنف في هذا الطلب");
+    throw error;
+  }
+  const [summary] = await db.query<RowDataPacket[]>(
+    "SELECT ROUND(AVG(rating), 1) AS average, COUNT(*) AS count FROM product_ratings WHERE productId = ?",
+    [input.productId],
+  );
+  return { productId: input.productId, average: Number(summary[0]?.average || 0), count: Number(summary[0]?.count || 0) };
+}
