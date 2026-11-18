@@ -648,7 +648,7 @@ export async function claimUniversalPrintJob(deviceId: string) {
     const now = new Date();
     await conn.query("UPDATE print_jobs SET status = 'failed', lastStage = 'uncertain', lastError = 'انتهت مهلة الجهاز؛ يلزم التحقق قبل إعادة الطباعة', leaseUntil = NULL, updatedAt = ? WHERE status = 'printing' AND leaseUntil IS NOT NULL AND leaseUntil < ?", [now, now]);
     const [rows] = await conn.query<RowDataPacket[]>(
-      "SELECT j.id, j.orderId, j.attempts, j.idempotencyKey, j.createdAt, p.id AS printerId, p.connectionType FROM print_jobs j JOIN print_printers p ON p.deviceId = ? AND p.enabled = 1 AND p.isDefault = 1 JOIN print_devices d ON d.id = p.deviceId AND d.status <> 'revoked' WHERE j.status = 'pending' AND (j.deviceId IS NULL OR j.deviceId = ?) ORDER BY j.id LIMIT 1 FOR UPDATE",
+      "SELECT j.id, j.orderId, j.attempts, j.idempotencyKey, j.createdAt, p.id AS printerId, p.connectionType FROM print_jobs j JOIN print_printers p ON p.deviceId = ? AND p.enabled = 1 AND p.isDefault = 1 JOIN print_devices d ON d.id = p.deviceId AND d.status <> 'revoked' WHERE j.status = 'pending' AND j.attempts < 3 AND j.updatedAt <= NOW() AND (j.deviceId IS NULL OR j.deviceId = ?) ORDER BY j.id LIMIT 1 FOR UPDATE",
       [deviceId, deviceId],
     );
     if (!rows.length) { await conn.commit(); return null; }
@@ -682,7 +682,7 @@ export async function recordUniversalPrintStage(input: { jobId: number; deviceId
   const conn = await getPool().getConnection();
   try {
     await conn.beginTransaction();
-    const [jobs] = await conn.query<RowDataPacket[]>("SELECT id FROM print_jobs WHERE id = ? AND deviceId = ? AND status = 'printing' FOR UPDATE", [input.jobId, input.deviceId]);
+    const [jobs] = await conn.query<RowDataPacket[]>("SELECT id, attempts FROM print_jobs WHERE id = ? AND deviceId = ? AND status = 'printing' FOR UPDATE", [input.jobId, input.deviceId]);
     if (!jobs.length) throw new RestaurantError("مهمة الطباعة غير مملوكة لهذا الجهاز أو انتهت صلاحيتها", 409);
     await conn.query("UPDATE print_jobs SET lastStage = ?, lastError = ?, leaseUntil = ?, updatedAt = ? WHERE id = ?", [
       input.stage, input.status === "ok" ? "" : String(input.message || input.status).slice(0, 500), new Date(now.getTime() + 60_000), now, input.jobId,
@@ -692,8 +692,13 @@ export async function recordUniversalPrintStage(input: { jobId: number; deviceId
     ]);
     if (input.stage === "submitted_to_spooler" || input.stage === "printer_acknowledged" || input.stage === "paper_confirmed") {
       await conn.query("UPDATE print_jobs SET status = 'printed', confirmedAt = ?, leaseUntil = NULL WHERE id = ?", [now, input.jobId]);
-    } else if (input.stage === "failed") await conn.query("UPDATE print_jobs SET status = 'failed', leaseUntil = NULL WHERE id = ?", [input.jobId]);
-    else if (input.stage === "uncertain") await conn.query("UPDATE print_jobs SET status = 'failed', lastError = ?, leaseUntil = NULL WHERE id = ?", [String(input.message || "نتيجة الطباعة غير مؤكدة").slice(0, 500), input.jobId]);
+    } else if (input.stage === "failed") {
+      const attempts = Number(jobs[0].attempts);
+      const retryAt = new Date(now.getTime() + Math.min(60_000, 5_000 * (2 ** Math.max(0, attempts - 1))));
+      await conn.query("UPDATE print_jobs SET status = ?, lastError = ?, leaseUntil = NULL, updatedAt = ? WHERE id = ?", [
+        attempts < 3 ? "pending" : "failed", String(input.message || "تعذرت الطباعة").slice(0, 500), attempts < 3 ? retryAt : now, input.jobId,
+      ]);
+    } else if (input.stage === "uncertain") await conn.query("UPDATE print_jobs SET status = 'failed', lastError = ?, leaseUntil = NULL WHERE id = ?", [String(input.message || "نتيجة الطباعة غير مؤكدة").slice(0, 500), input.jobId]);
     await conn.commit();
   } catch (error) { await conn.rollback(); throw error; }
   finally { conn.release(); }
