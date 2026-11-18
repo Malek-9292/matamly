@@ -470,7 +470,9 @@ export async function createCustomerOrder(body: Record<string, unknown>) {
       for (const item of order.items) {
         await conn.query("INSERT INTO order_items (orderId, productId, name, qty, price, choicesJson) VALUES (?, ?, ?, ?, ?, ?)", [inserted.insertId, String(item.productId), item.name, item.qty, item.price.toFixed(3), JSON.stringify(item.choices)]);
       }
-      await conn.query("INSERT INTO print_jobs (orderId, kind, status, idempotencyKey, createdAt, updatedAt) VALUES (?, 'auto', 'pending', ?, ?, ?)", [inserted.insertId, "order-" + inserted.insertId + "-auto", now, now]);
+      const [printTargets] = await conn.query<RowDataPacket[]>("SELECT p.deviceId, p.id AS printerId FROM print_printers p JOIN print_devices d ON d.id = p.deviceId WHERE d.status = 'online' AND p.enabled = 1 AND p.isDefault = 1 ORDER BY d.lastSeenAt DESC LIMIT 1");
+      const target = printTargets[0];
+      await conn.query("INSERT INTO print_jobs (orderId, kind, status, idempotencyKey, deviceId, printerId, createdAt, updatedAt) VALUES (?, 'auto', 'pending', ?, ?, ?, ?, ?)", [inserted.insertId, "order-" + inserted.insertId + "-auto", target?.deviceId || null, target?.printerId || null, now, now]);
       await conn.commit();
       const saved = await loadOrder(db, inserted.insertId);
       if (!saved) throw new RestaurantError("تعذر قراءة الطلب بعد حفظه", 500);
@@ -501,7 +503,9 @@ export async function reprintOrder(id: number) {
   const [open] = await db.query<RowDataPacket[]>("SELECT id FROM print_jobs WHERE orderId = ? AND status IN ('pending', 'printing') LIMIT 1", [id]);
   if (!open.length) {
     const now = new Date();
-    await db.query("INSERT INTO print_jobs (orderId, kind, status, idempotencyKey, createdAt, updatedAt) VALUES (?, 'manual', 'pending', ?, ?, ?)", [id, "order-" + id + "-manual-" + crypto.randomUUID(), now, now]);
+    const [targets] = await db.query<RowDataPacket[]>("SELECT p.deviceId, p.id AS printerId FROM print_printers p JOIN print_devices d ON d.id = p.deviceId WHERE d.status = 'online' AND p.enabled = 1 AND p.isDefault = 1 ORDER BY d.lastSeenAt DESC LIMIT 1");
+    const target = targets[0];
+    await db.query("INSERT INTO print_jobs (orderId, kind, status, idempotencyKey, deviceId, printerId, createdAt, updatedAt) VALUES (?, 'manual', 'pending', ?, ?, ?, ?, ?)", [id, "order-" + id + "-manual-" + crypto.randomUUID(), target?.deviceId || null, target?.printerId || null, now, now]);
   }
   return loadOrder(db, id);
 }
@@ -510,7 +514,7 @@ export async function claimPrintJob(worker: string) {
   const conn = await getPool().getConnection();
   try {
     await conn.beginTransaction();
-    const [jobs] = await conn.query<RowDataPacket[]>("SELECT id, orderId, attempts FROM print_jobs WHERE status = 'pending' ORDER BY id LIMIT 1 FOR UPDATE");
+    const [jobs] = await conn.query<RowDataPacket[]>("SELECT id, orderId, attempts FROM print_jobs WHERE status = 'pending' AND deviceId IS NULL ORDER BY id LIMIT 1 FOR UPDATE");
     if (!jobs.length) {
       await conn.commit();
       return null;
