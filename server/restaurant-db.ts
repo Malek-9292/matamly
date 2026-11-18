@@ -624,6 +624,8 @@ export async function claimUniversalPrintJob(deviceId: string) {
   const conn = await getPool().getConnection();
   try {
     await conn.beginTransaction();
+    const now = new Date();
+    await conn.query("UPDATE print_jobs SET status = 'failed', lastStage = 'uncertain', lastError = 'انتهت مهلة الجهاز؛ يلزم التحقق قبل إعادة الطباعة', leaseUntil = NULL, updatedAt = ? WHERE status = 'printing' AND leaseUntil IS NOT NULL AND leaseUntil < ?", [now, now]);
     const [rows] = await conn.query<RowDataPacket[]>(
       "SELECT j.id, j.orderId, j.attempts, j.idempotencyKey, j.createdAt, p.id AS printerId, p.connectionType FROM print_jobs j JOIN print_printers p ON p.deviceId = ? AND p.enabled = 1 AND p.isDefault = 1 JOIN print_devices d ON d.id = p.deviceId AND d.status <> 'revoked' WHERE j.status = 'pending' AND (j.deviceId IS NULL OR j.deviceId = ?) ORDER BY j.id LIMIT 1 FOR UPDATE",
       [deviceId, deviceId],
@@ -668,8 +670,9 @@ export async function recordUniversalPrintStage(input: { jobId: number; deviceId
     await conn.query("INSERT INTO print_job_events (jobId, deviceId, stage, status, message, createdAt) VALUES (?, ?, ?, ?, ?, ?)", [
       input.jobId, input.deviceId, input.stage, input.status, String(input.message || "").slice(0, 500), now,
     ]);
-    if (input.stage === "paper_confirmed") await conn.query("UPDATE print_jobs SET status = 'printed', confirmedAt = ?, leaseUntil = NULL WHERE id = ?", [now, input.jobId]);
-    else if (input.stage === "failed") await conn.query("UPDATE print_jobs SET status = 'failed', leaseUntil = NULL WHERE id = ?", [input.jobId]);
+    if (input.stage === "submitted_to_spooler" || input.stage === "printer_acknowledged" || input.stage === "paper_confirmed") {
+      await conn.query("UPDATE print_jobs SET status = 'printed', confirmedAt = ?, leaseUntil = NULL WHERE id = ?", [now, input.jobId]);
+    } else if (input.stage === "failed") await conn.query("UPDATE print_jobs SET status = 'failed', leaseUntil = NULL WHERE id = ?", [input.jobId]);
     else if (input.stage === "uncertain") await conn.query("UPDATE print_jobs SET status = 'failed', lastError = ?, leaseUntil = NULL WHERE id = ?", [String(input.message || "نتيجة الطباعة غير مؤكدة").slice(0, 500), input.jobId]);
     await conn.commit();
   } catch (error) { await conn.rollback(); throw error; }
