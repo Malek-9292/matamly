@@ -142,3 +142,4 @@
   body:has(.cashier-shell) .cashier-order .order-total>strong{font-size:25px!important;font-weight:900!important}
   body:has(.cashier-shell) .cashier-order .order-status,.cashier-order .print-state{display:none!important}
 }
+.site-shell .service-strip button.unavailable{opacity:.48;filter:grayscale(.35);cursor:pointer;background:var(--paper);color:var(--muted);border-style:dashed}.site-shell .service-strip button.unavailable:active{transform:scale(.97)}
