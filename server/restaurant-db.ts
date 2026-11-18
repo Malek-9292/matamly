@@ -637,7 +637,6 @@ export async function claimUniversalPrintJob(deviceId: string) {
     if (!rows.length) { await conn.commit(); return null; }
     const row = rows[0];
     const attempts = Number(row.attempts) + 1;
-    const now = new Date();
     const leaseUntil = new Date(now.getTime() + 60_000);
     await conn.query(
       "UPDATE print_jobs SET status = 'printing', attempts = ?, claimedBy = ?, deviceId = ?, printerId = ?, leaseUntil = ?, lastStage = 'claimed', updatedAt = ? WHERE id = ? AND status = 'pending'",
