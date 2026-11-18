@@ -208,6 +208,27 @@ export function registerRestaurantRoutes(app: express.Express) {
     } catch (error) { await sendError(res, error); }
   });
 
+  app.post("/api/admin/menu-images", async (req, res) => {
+    if (await roleOf(req) !== "admin") return res.status(403).json({ ok: false, message: "هذا الإجراء للإدارة فقط" });
+    const updates = req.body?.updates;
+    if (!Array.isArray(updates) || updates.length < 1 || updates.length > 5) return res.status(400).json({ ok: false, message: "ارفع الصور على دفعات صغيرة" });
+    if (updates.some((item) => !Number.isInteger(Number(item?.id)) || typeof item?.image !== "string" || !/^data:image\/(jpeg|png|webp);base64,/.test(item.image) || item.image.length > 650_000)) {
+      return res.status(400).json({ ok: false, message: "ملف صورة غير صالح أو حجمه كبير" });
+    }
+    try {
+      const products = await getMenu();
+      let updated = 0;
+      for (const item of updates) {
+        const product = products.find((entry: { id?: number }) => Number(entry.id) === Number(item.id));
+        if (!product) continue;
+        product.image = item.image;
+        updated++;
+      }
+      await saveMenu(products);
+      res.json({ ok: true, updated });
+    } catch (error) { await sendError(res, error); }
+  });
+
   app.get("/api/menu", async (_req, res) => {
     res.setHeader("Cache-Control", "no-store");
     try { res.json({ products: await getMenu() }); } catch (error) { await sendError(res, error); }
