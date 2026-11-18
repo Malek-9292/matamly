@@ -514,7 +514,7 @@ export async function claimPrintJob(worker: string) {
   const conn = await getPool().getConnection();
   try {
     await conn.beginTransaction();
-    const [jobs] = await conn.query<RowDataPacket[]>("SELECT id, orderId, attempts FROM print_jobs WHERE status = 'pending' AND deviceId IS NULL ORDER BY id LIMIT 1 FOR UPDATE");
+    const [jobs] = await conn.query<RowDataPacket[]>("SELECT id, orderId, attempts FROM print_jobs WHERE status = 'pending' AND deviceId IS NULL AND NOT EXISTS (SELECT 1 FROM print_devices d JOIN print_printers p ON p.deviceId = d.id WHERE d.status = 'online' AND p.enabled = 1 AND p.isDefault = 1) ORDER BY id LIMIT 1 FOR UPDATE");
     if (!jobs.length) {
       await conn.commit();
       return null;
