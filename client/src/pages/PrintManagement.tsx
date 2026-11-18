@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Copy, Printer, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 
-type PrinterInfo = { id:string; name:string; model:string; connectionType:string; isDefault:boolean; enabled:boolean };
+type PrinterInfo = { id:string; name:string; model:string; connectionType:string; address:string; isDefault:boolean; enabled:boolean };
 type Device = { id:string; name:string; platform:string; status:string; lastSeenAt:string|null; appVersion:string; printers:PrinterInfo[] };
 
 const field: React.CSSProperties = { width:"100%", padding:"10px 12px", border:"1px solid #d7ddd8", borderRadius:10, background:"#fff", color:"#17231c" };
@@ -54,7 +54,7 @@ export default function PrintManagement() {
   const updatePrinter=async(deviceId:string, printer:PrinterInfo, patch:Partial<PrinterInfo>)=>{
     const next={...printer,...patch};
     try{
-      const r=await fetch(`/api/admin/print/printers/${printer.id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:next.name,model:next.model,connectionType:next.connectionType,address:"",enabled:next.enabled,isDefault:next.isDefault})});
+      const r=await fetch(`/api/admin/print/printers/${printer.id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:next.name,model:next.model,connectionType:next.connectionType,address:next.address||"",enabled:next.enabled,isDefault:next.isDefault})});
       if(!r.ok)throw new Error("تعذر تحديث إعدادات الطابعة");
       setMessage("تم تحديث إعدادات الطابعة.");await load();
     }catch(e){setError(e instanceof Error?e.message:"تعذر تحديث الطابعة");}
