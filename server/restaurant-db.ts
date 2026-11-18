@@ -22,7 +22,27 @@ export function getPool() {
   if (pool) return pool;
   const uri = process.env.DATABASE_URL || "";
   if (!uri) throw new Error("DATABASE_URL is required");
-  pool = mysql.createPool({ uri, connectionLimit: 10, charset: "utf8mb4", timezone: "Z" });
+
+  // mysql2 does not understand the CLI-style ssl-mode query parameter.
+  // Parse the URL into native mysql2 options and enable TLS explicitly.
+  const connectionUrl = new URL(uri);
+  const sslMode = connectionUrl.searchParams.get("ssl-mode")?.toUpperCase();
+  connectionUrl.searchParams.delete("ssl-mode");
+
+  const database = decodeURIComponent(connectionUrl.pathname.replace(/^\//, ""));
+  const options = {
+    host: connectionUrl.hostname,
+    port: connectionUrl.port ? Number(connectionUrl.port) : 3306,
+    user: decodeURIComponent(connectionUrl.username),
+    password: decodeURIComponent(connectionUrl.password),
+    database,
+    ...(sslMode === "REQUIRED" ? { ssl: {} } : {}),
+    connectionLimit: 10,
+    charset: "utf8mb4",
+    timezone: "Z",
+  };
+
+  pool = mysql.createPool(options);
   return pool;
 }
 
@@ -36,7 +56,7 @@ function rows<T extends RowDataPacket>(value: unknown) {
 
 async function applySqlFile(db: Pool, fileName: string) {
   const sql = await readFile(path.join(process.cwd(), "drizzle", fileName), "utf8");
-  const statements = sql.split(/;\s*\n/).map((part) => part.trim()).filter((part) => part && !part.startsWith("--"));
+  const statements = sql.split(/;\\s*\\n/).map((part) => part.trim()).filter((part) => part && !part.startsWith("--"));
   for (const statement of statements) await db.query(statement);
 }
 
