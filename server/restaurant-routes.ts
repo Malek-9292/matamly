@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { validPlatform, validConnection, validStage } from "./print-core/protocol";
 import { customerAccountId, getCustomerAccountStats, registerCustomerAccountRoutes } from "./customer-account";
 import type express from "express";
 import {
@@ -22,6 +23,15 @@ import {
   readStaffSession,
   reprintOrder,
   retryPrintJob,
+  pairPrintDevice,
+  authenticatePrintDevice,
+  heartbeatPrintDevice,
+  listPrintDevices,
+  addPrintPrinter,
+  revokePrintDevice,
+  claimUniversalPrintJob,
+  recordUniversalPrintStage,
+  listPrintJobEvents,
   saveArea,
   saveGroup,
   saveJsonDocument,
@@ -63,6 +73,11 @@ async function roleOf(req: express.Request) {
   const token = readToken(req);
   if (!token) return null;
   return readStaffSession(token);
+}
+
+function deviceToken(req: express.Request) {
+  const header = req.header("authorization") || "";
+  return header.startsWith("Bearer ") ? header.slice(7) : "";
 }
 
 function agentAuthorized(req: express.Request) {
@@ -465,6 +480,73 @@ export function registerRestaurantRoutes(app: express.Express) {
       if (!image) return res.status(502).json({ ok: false, message: "No image returned" });
       return res.json({ ok: true, image });
     } catch { return res.status(502).json({ ok: false, message: "Image generation service unavailable" }); }
+  });
+
+
+  // Matamly Universal Print v1 — outbound HTTPS polling from registered agents.
+  app.post("/api/admin/print/devices/pair", async (req, res) => {
+    if (await roleOf(req) !== "admin") return res.status(403).json({ ok: false });
+    const name = cleanText(req.body?.name, 120);
+    const platform = req.body?.platform;
+    if (name.length < 2 || !validPlatform(platform)) return res.status(400).json({ ok: false, message: "اسم الجهاز أو نظام التشغيل غير صحيح" });
+    try {
+      const paired = await pairPrintDevice({ name, platform, appVersion: cleanText(req.body?.appVersion, 40), capabilities: req.body?.capabilities });
+      res.status(201).json({ ok: true, ...paired });
+    } catch (error) { await sendError(res, error); }
+  });
+  app.get("/api/admin/print/devices", async (req, res) => {
+    if (await roleOf(req) !== "admin") return res.status(403).json({ ok: false });
+    try { res.setHeader("Cache-Control", "no-store"); res.json({ devices: await listPrintDevices() }); }
+    catch (error) { await sendError(res, error); }
+  });
+  app.post("/api/admin/print/devices/:id/revoke", async (req, res) => {
+    if (await roleOf(req) !== "admin") return res.status(403).json({ ok: false });
+    try { await revokePrintDevice(cleanText(req.params.id, 36)); res.json({ ok: true }); }
+    catch (error) { await sendError(res, error); }
+  });
+  app.post("/api/admin/print/printers", async (req, res) => {
+    if (await roleOf(req) !== "admin") return res.status(403).json({ ok: false });
+    const connectionType = req.body?.connectionType;
+    const deviceId = cleanText(req.body?.deviceId, 36);
+    const name = cleanText(req.body?.name, 120);
+    if (!deviceId || name.length < 2 || !validConnection(connectionType)) return res.status(400).json({ ok: false, message: "بيانات الطابعة غير صحيحة" });
+    try {
+      const id = await addPrintPrinter({ deviceId, name, model: cleanText(req.body?.model, 120), connectionType, address: cleanText(req.body?.address, 255), isDefault: req.body?.isDefault === true });
+      res.status(201).json({ ok: true, id });
+    } catch (error) { await sendError(res, error); }
+  });
+  app.post("/api/print/v1/devices/heartbeat", async (req, res) => {
+    const device = await authenticatePrintDevice(deviceToken(req));
+    if (!device) return res.status(401).json({ ok: false });
+    try {
+      await heartbeatPrintDevice({ id: device.id, appVersion: cleanText(req.body?.appVersion, 40), capabilities: req.body?.capabilities });
+      res.json({ ok: true, serverTime: new Date().toISOString() });
+    } catch (error) { await sendError(res, error); }
+  });
+  app.get("/api/print/v1/jobs/claim", async (req, res) => {
+    const device = await authenticatePrintDevice(deviceToken(req));
+    if (!device) return res.status(401).json({ ok: false });
+    try {
+      const job = await claimUniversalPrintJob(device.id);
+      res.setHeader("Cache-Control", "no-store");
+      res.json({ job });
+    } catch (error) { await sendError(res, error); }
+  });
+  app.post("/api/print/v1/jobs/:id/stage", async (req, res) => {
+    const device = await authenticatePrintDevice(deviceToken(req));
+    if (!device) return res.status(401).json({ ok: false });
+    if (!validStage(req.body?.stage) || !["ok", "failed", "uncertain"].includes(req.body?.status)) return res.status(400).json({ ok: false, message: "بيانات حالة الطباعة غير صحيحة" });
+    try {
+      await recordUniversalPrintStage({ jobId: Number(req.params.id), deviceId: device.id, stage: req.body.stage as PrintStage, status: req.body.status, message: cleanText(req.body?.message, 500) });
+      res.json({ ok: true });
+    } catch (error) { await sendError(res, error); }
+  });
+  app.get("/api/admin/print/jobs/:id/events", async (req, res) => {
+    if (await roleOf(req) !== "admin") return res.status(403).json({ ok: false });
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ ok: false });
+    try { res.json({ events: await listPrintJobEvents(id) }); }
+    catch (error) { await sendError(res, error); }
   });
 
   app.get("/api/print-agent/jobs/claim", async (req, res) => {
