@@ -1,4 +1,3 @@
--- Matamly Universal Print: device registry, printer assignments, audit events and job leases.
 CREATE TABLE IF NOT EXISTS `print_devices` (
   `id` varchar(36) NOT NULL,
   `name` varchar(120) NOT NULL,
