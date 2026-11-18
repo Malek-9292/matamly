@@ -55,3 +55,17 @@ The new agent uses HTTPS, device-specific authentication, heartbeats, persistent
 ## Current implementation boundary
 
 The server-side registry and first Windows adapter are being introduced incrementally. Android USB printing, macOS/Linux adapters, printer test workflows, and complete event/history UI must not be treated as supported until their platform builds and hardware tests pass.
+
+
+## macOS / Linux (CUPS adapter)
+
+The POSIX adapter uses the same device token and HTTPS protocol, with CUPS `lp` for printers installed in the operating system:
+
+```sh
+export MATAMLY_API_BASE="https://YOUR-DEVELOPMENT-HOST"
+export MATAMLY_DEVICE_TOKEN="ONE_TIME_DEVICE_TOKEN"
+export MATAMLY_PRINTER_NAME="Exact CUPS queue name" # optional; defaults to CUPS default
+node ./posix-agent.mjs
+```
+
+CUPS must already be installed and the selected USB or network printer must be configured as a CUPS queue. This adapter has source code but is not yet verified on real macOS/Linux hosts or printers.
