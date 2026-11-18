@@ -77,6 +77,24 @@ function cleanNumber(value: unknown, max = 1_000_000) {
   return Number.isFinite(number) && number >= 0 && number <= max ? number : null;
 }
 
+
+function kuwaitMinutesNow() {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kuwait", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+  const hour = Number(parts.find((part) => part.type === "hour")?.value || 0);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value || 0);
+  return hour * 60 + minute;
+}
+
+function clockMinutes(value: unknown, fallback: string) {
+  const clock = typeof value === "string" && /^([01]\\d|2[0-3]):[0-5]\\d$/.test(value) ? value : fallback;
+  const [hour, minute] = clock.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function isWithinOvernightWindow(now: number, start: number, end: number) {
+  return start < end ? now >= start && now < end : now >= start || now < end;
+}
+
 async function sendError(res: express.Response, error: unknown) {
   if (error instanceof RestaurantError) return res.status(error.status).json({ ok: false, message: error.message });
   console.error(error);
@@ -84,21 +102,28 @@ async function sendError(res: express.Response, error: unknown) {
 }
 
 export function registerRestaurantRoutes(app: express.Express) {
-  app.post("/api/orders", (req, res) => {
+  app.post("/api/orders", async (req, res) => {
     const wait = limited(orderAttempts, req.ip || "unknown", 20, 10 * 60 * 1000);
     if (wait) {
       res.setHeader("Retry-After", String(Math.ceil(wait / 1000)));
       return res.status(429).json({ ok: false, message: "طلبات كثيرة. حاول بعد قليل." });
     }
-    void createCustomerOrder(req.body ?? {}).then((order) => res.status(201).json({
-      ok: true,
-      id: order.id,
-      orderNumber: order.orderNumber,
-      total: order.total,
-      foodTotal: order.foodTotal,
-      deliveryFee: order.deliveryFee,
-      items: order.items,
-    })).catch((error) => sendError(res, error));
+    try {
+      const { settings } = await getSettings();
+      const now = kuwaitMinutesNow();
+      const open = clockMinutes(settings.matamly_open_time, "06:30");
+      const close = clockMinutes(settings.matamly_close_time, "00:30");
+      const deliveryStart = clockMinutes(settings.matamly_delivery_start_time, "11:30");
+      if (!isWithinOvernightWindow(now, open, close)) {
+        return res.status(403).json({ ok: false, message: `المطعم مغلق حالياً. مواعيد العمل من ${settings.matamly_open_time || "06:30"} إلى ${settings.matamly_close_time || "00:30"}` });
+      }
+      const serviceMode = req.body?.serviceMode;
+      if (serviceMode === "delivery" && !isWithinOvernightWindow(now, deliveryStart, close)) {
+        return res.status(403).json({ ok: false, message: `التوصيل يبدأ الساعة ${settings.matamly_delivery_start_time || "11:30"}` });
+      }
+      const order = await createCustomerOrder(req.body ?? {});
+      return res.status(201).json({ ok: true, id: order.id, orderNumber: order.orderNumber, total: order.total, foodTotal: order.foodTotal, deliveryFee: order.deliveryFee, items: order.items });
+    } catch (error) { return sendError(res, error); }
   });
 
   app.get("/api/orders", async (req, res) => {
