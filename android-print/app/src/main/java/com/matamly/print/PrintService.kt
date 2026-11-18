@@ -46,8 +46,8 @@ class PrintService : Service() {
     private fun notification(): Notification {
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) manager.createNotificationChannel(NotificationChannel("matamly_print", "Matamly Print", NotificationManager.IMPORTANCE_LOW))
-        return if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, "matamly_print").setContentTitle("Matamly Print").setContentText("خدمة الطباعة التلقائية تعمل").setSmallIcon(android.R.drawable.stat_sys_printer).build()
-        else Notification.Builder(this).setContentTitle("Matamly Print").setContentText("خدمة الطباعة التلقائية تعمل").setSmallIcon(android.R.drawable.stat_sys_printer).build()
+        return if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, "matamly_print").setContentTitle("Matamly Print").setContentText("خدمة الطباعة التلقائية تعمل").setSmallIcon(android.R.drawable.ic_menu_manage).build()
+        else Notification.Builder(this).setContentTitle("Matamly Print").setContentText("خدمة الطباعة التلقائية تعمل").setSmallIcon(android.R.drawable.ic_menu_manage).build()
     }
 
     private fun api(path: String, body: JSONObject? = null): JSONObject {
