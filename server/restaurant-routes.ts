@@ -12,6 +12,7 @@ import {
   getJsonDocument,
   getMenu,
   getProductRatingSummary,
+  getRateableOrder,
   submitProductRating,
   getSettings,
   initRestaurant,
@@ -172,6 +173,17 @@ export function registerRestaurantRoutes(app: express.Express) {
     res.setHeader("Cache-Control", "no-store");
     try { res.json({ ratings: await getProductRatingSummary() }); }
     catch (error) { await sendError(res, error); }
+  });
+
+  app.get("/api/product-ratings/order/:orderNumber", async (req, res) => {
+    try {
+      const items = await getRateableOrder({
+        orderNumber: Number(req.params.orderNumber),
+        phone: cleanText(req.query.phone, 30),
+      });
+      res.setHeader("Cache-Control", "no-store");
+      res.json({ items });
+    } catch (error) { await sendError(res, error); }
   });
 
   app.post("/api/product-ratings", async (req, res) => {
