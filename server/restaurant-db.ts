@@ -602,3 +602,20 @@ export async function submitProductRating(input: { orderNumber: number; phone: s
   );
   return { productId: input.productId, average: Number(summary[0]?.average || 0), count: Number(summary[0]?.count || 0) };
 }
+
+
+export async function getRateableOrder(input: { orderNumber: number; phone: string }) {
+  if (!Number.isInteger(input.orderNumber) || input.orderNumber < 1) throw new RestaurantError("رقم الطلب غير صحيح");
+  const [orders] = await getPool().query<RowDataPacket[]>(
+    "SELECT id, status FROM orders WHERE orderNumber = ? AND customerPhone = ? LIMIT 1",
+    [input.orderNumber, input.phone.trim()],
+  );
+  if (!orders.length) throw new RestaurantError("لم يتم العثور على الطلب بهذه البيانات", 404);
+  if (orders[0].status !== "completed") throw new RestaurantError("التقييم متاح بعد استلام الطلب فقط");
+  const orderId = Number(orders[0].id);
+  const [items] = await getPool().query<RowDataPacket[]>(
+    "SELECT oi.productId, oi.name, pr.rating FROM order_items oi LEFT JOIN product_ratings pr ON pr.orderId = oi.orderId AND pr.productId = oi.productId WHERE oi.orderId = ? ORDER BY oi.id",
+    [orderId],
+  );
+  return items.map((row) => ({ productId: String(row.productId), name: String(row.name), rating: row.rating == null ? null : Number(row.rating) }));
+}
