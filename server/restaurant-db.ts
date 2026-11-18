@@ -86,7 +86,11 @@ export async function migrate(db = getPool()) {
     await applySqlFile(db, "0003_customer_accounts.sql");
     await db.query("INSERT INTO schema_migrations (id) VALUES ('0003_customer_accounts')");
   }
-  for (const table of ["users", "schema_migrations", "app_settings", "documents", "delivery_areas", "delivery_groups", "delivery_group_areas", "order_counters", "orders", "order_items", "print_jobs", "staff_sessions", "customer_accounts", "customer_sessions", "customer_session_events", "customer_addresses"]) {
+  if (!(await applied(db, "0004_universal_print"))) {
+    await applySqlFile(db, "0004_universal_print.sql");
+    await db.query("INSERT INTO schema_migrations (id) VALUES ('0004_universal_print')");
+  }
+  for (const table of ["users", "schema_migrations", "app_settings", "documents", "delivery_areas", "delivery_groups", "delivery_group_areas", "order_counters", "orders", "order_items", "print_jobs", "print_devices", "print_printers", "print_job_events", "staff_sessions", "customer_accounts", "customer_sessions", "customer_session_events", "customer_addresses"]) {
     await db.query(`ALTER TABLE \`${table}\` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
   }
 }
