@@ -699,6 +699,14 @@ export async function recordUniversalPrintStage(input: { jobId: number; deviceId
   finally { conn.release(); }
 }
 
+export async function listRecentPrintJobs(limit = 50) {
+  const [rows] = await getPool().query<RowDataPacket[]>(
+    "SELECT j.id, j.orderId, o.orderNumber, j.kind, j.status, j.attempts, j.lastError, j.lastStage, j.createdAt, j.updatedAt, d.name AS deviceName, p.name AS printerName FROM print_jobs j JOIN orders o ON o.id = j.orderId LEFT JOIN print_devices d ON d.id = j.deviceId LEFT JOIN print_printers p ON p.id = j.printerId ORDER BY j.id DESC LIMIT ?",
+    [Math.max(1, Math.min(100, Math.floor(limit)))],
+  );
+  return rows;
+}
+
 export async function listPrintJobEvents(jobId: number) {
   const [rows] = await getPool().query<RowDataPacket[]>("SELECT id, jobId, deviceId, stage, status, message, createdAt FROM print_job_events WHERE jobId = ? ORDER BY id DESC LIMIT 100", [jobId]);
   return rows;
