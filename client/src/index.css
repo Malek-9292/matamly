@@ -164,3 +164,9 @@
 .site-shell .category-cards button:hover img{transform:scale(1.06);filter:saturate(1.12)}
 @media(max-width:700px){.site-shell .category-cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;padding:8px 0 16px!important}.site-shell .category-cards button{aspect-ratio:1.55/1!important;border-radius:13px!important}.site-shell .category-cards button>span:last-child{font-size:13px!important;padding:30px 11px 10px!important}}
 @media(min-width:701px) and (max-width:1050px){.site-shell .category-cards{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+
+/* Neutral backgrounds for menu category cards */
+.site-shell .category-cards button{background:#e8e6df!important;color:#26332d!important;box-shadow:none!important}
+.site-shell .category-cards button .category-placeholder{background:linear-gradient(135deg,#f1efe9,#d9d7cf)!important;color:#59635d!important}
+.site-shell .category-cards button::after{background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.08) 45%,rgba(0,0,0,.48))!important}
+.site-shell .category-cards button>span:last-child{color:#fff!important}
