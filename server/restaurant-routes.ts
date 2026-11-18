@@ -33,6 +33,7 @@ import {
   claimUniversalPrintJob,
   recordUniversalPrintStage,
   listPrintJobEvents,
+  listRecentPrintJobs,
   saveArea,
   saveGroup,
   saveJsonDocument,
@@ -555,6 +556,11 @@ export function registerRestaurantRoutes(app: express.Express) {
       await recordUniversalPrintStage({ jobId: Number(req.params.id), deviceId: device.id, stage: req.body.stage as PrintStage, status: req.body.status, message: cleanText(req.body?.message, 500) });
       res.json({ ok: true });
     } catch (error) { await sendError(res, error); }
+  });
+  app.get("/api/admin/print/jobs", async (req, res) => {
+    if (await roleOf(req) !== "admin") return res.status(403).json({ ok: false });
+    try { res.setHeader("Cache-Control", "no-store"); res.json({ jobs: await listRecentPrintJobs(Number(req.query.limit) || 50) }); }
+    catch (error) { await sendError(res, error); }
   });
   app.get("/api/admin/print/jobs/:id/events", async (req, res) => {
     if (await roleOf(req) !== "admin") return res.status(403).json({ ok: false });
