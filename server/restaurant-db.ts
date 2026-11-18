@@ -613,6 +613,23 @@ export async function addPrintPrinter(input: { deviceId: string; name: string; m
   finally { conn.release(); }
 }
 
+export async function updatePrintPrinter(id: string, input: { name: string; model?: string; connectionType: PrintConnection; address?: string; enabled: boolean; isDefault: boolean }) {
+  const conn = await getPool().getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.query<RowDataPacket[]>("SELECT deviceId FROM print_printers WHERE id = ? FOR UPDATE", [id]);
+    if (!rows.length) throw new RestaurantError("الطابعة غير موجودة", 404);
+    const deviceId = String(rows[0].deviceId);
+    if (input.isDefault) await conn.query("UPDATE print_printers SET isDefault = 0 WHERE deviceId = ?", [deviceId]);
+    await conn.query(
+      "UPDATE print_printers SET name = ?, model = ?, connectionType = ?, address = ?, enabled = ?, isDefault = ?, updatedAt = ? WHERE id = ?",
+      [input.name.slice(0, 120), String(input.model || "").slice(0, 120), input.connectionType, String(input.address || "").slice(0, 255), input.enabled ? 1 : 0, input.isDefault ? 1 : 0, new Date(), id],
+    );
+    await conn.commit();
+  } catch (error) { await conn.rollback(); throw error; }
+  finally { conn.release(); }
+}
+
 export async function revokePrintDevice(id: string) {
   const conn = await getPool().getConnection();
   try {
