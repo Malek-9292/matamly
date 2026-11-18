@@ -32,3 +32,26 @@ A phone browser cannot reliably drive an arbitrary USB, network, or Bluetooth pr
 - If the printer is installed on the phone through the Android print framework, use the cashier's "طباعة عبر نظام التشغيل" button. That path opens the system print interface and does not mark the order printed by itself.
 
 Silent automatic printing still depends on the device granting access to a printer driver. This agent records the command result. It cannot prove that paper left every printer model.
+
+
+## Universal Print agent (device identity)
+
+New installations should use the registered-device protocol rather than the legacy shared `PRINT_AGENT_TOKEN`:
+
+1. In Admin → إدارة الطباعة, register a Windows device.
+2. Add the Windows printer to that device (USB or LAN printer must already be installed in Windows).
+3. Copy the one-time device token into the Windows agent environment.
+4. Run with Node.js 22+:
+
+```powershell
+$env:MATAMLY_API_BASE = "https://YOUR-DEVELOPMENT-HOST"
+$env:MATAMLY_DEVICE_TOKEN = "ONE_TIME_DEVICE_TOKEN"
+$env:MATAMLY_PRINTER_NAME = "Exact Windows printer name"
+node .\\windows-agent.mjs
+```
+
+The new agent uses HTTPS, device-specific authentication, heartbeats, persistent local job de-duplication, and reports the exact stage: Windows spooler accepted the job. It does not claim that paper was physically produced. Keep the old `agent.mjs` available for rollback while migrating existing stations.
+
+## Current implementation boundary
+
+The server-side registry and first Windows adapter are being introduced incrementally. Android USB printing, macOS/Linux adapters, printer test workflows, and complete event/history UI must not be treated as supported until their platform builds and hardware tests pass.
