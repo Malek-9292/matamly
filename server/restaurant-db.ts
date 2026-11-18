@@ -7,6 +7,7 @@ import { findAreaConflicts, money, resolveAreas, type AreaRule, type GroupRule }
 import { prepareOrder } from "./order-rules";
 import { readStore, type MatamlyStore } from "./persistence";
 import { buildReceipt } from "./receipt";
+import { sha256, createDeviceCredential, type PrintPlatform, type PrintConnection, type PrintStage } from "./print-core/protocol";
 
 export class RestaurantError extends Error {
   status: number;
@@ -546,6 +547,138 @@ export async function retryPrintJob(id: number) {
   if (Number(rows[0].attempts) >= 3) throw new RestaurantError("استنفدت محاولات الطباعة. استخدم إعادة الطباعة اليدوية.");
   const [result] = await getPool().query<ResultSetHeader>("UPDATE print_jobs SET status = 'pending', updatedAt = ? WHERE id = ? AND status = 'failed'", [new Date(), id]);
   if (!result.affectedRows) throw new RestaurantError("لا يمكن إعادة محاولة هذه المهمة الآن", 409);
+}
+
+
+export async function pairPrintDevice(input: { name: string; platform: PrintPlatform; appVersion?: string; capabilities?: unknown }) {
+  const id = crypto.randomUUID();
+  const token = createDeviceCredential();
+  const now = new Date();
+  await getPool().query(
+    "INSERT INTO print_devices (id, name, platform, tokenHash, status, appVersion, capabilitiesJson, createdAt, updatedAt) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)",
+    [id, input.name.slice(0, 120), input.platform, sha256(token), String(input.appVersion || "").slice(0, 40), JSON.stringify(input.capabilities ?? {}), now, now],
+  );
+  return { id, token };
+}
+
+export async function authenticatePrintDevice(token: string) {
+  if (!token || token.length > 128) return null;
+  const [found] = await getPool().query<RowDataPacket[]>(
+    "SELECT id, name, platform, status FROM print_devices WHERE tokenHash = ? LIMIT 1", [sha256(token)],
+  );
+  if (!found.length || found[0].status === "revoked") return null;
+  return { id: String(found[0].id), name: String(found[0].name), platform: String(found[0].platform) };
+}
+
+export async function heartbeatPrintDevice(input: { id: string; appVersion?: string; capabilities?: unknown }) {
+  const now = new Date();
+  const [result] = await getPool().query<ResultSetHeader>(
+    "UPDATE print_devices SET status = 'online', lastSeenAt = ?, appVersion = ?, capabilitiesJson = ?, updatedAt = ? WHERE id = ? AND status <> 'revoked'",
+    [now, String(input.appVersion || "").slice(0, 40), JSON.stringify(input.capabilities ?? {}), now, input.id],
+  );
+  if (!result.affectedRows) throw new RestaurantError("جهاز الطباعة غير مسجل أو تم إلغاؤه", 401);
+}
+
+export async function listPrintDevices() {
+  const [devices] = await getPool().query<RowDataPacket[]>("SELECT id, name, platform, status, lastSeenAt, appVersion, createdAt FROM print_devices ORDER BY createdAt DESC");
+  const [printers] = await getPool().query<RowDataPacket[]>("SELECT id, deviceId, name, model, connectionType, address, isDefault, enabled, createdAt FROM print_printers ORDER BY createdAt DESC");
+  return devices.map((device) => ({
+    ...device,
+    printers: printers.filter((printer) => String(printer.deviceId) === String(device.id)).map((printer) => ({
+      ...printer, isDefault: Number(printer.isDefault) === 1, enabled: Number(printer.enabled) === 1,
+    })),
+  }));
+}
+
+export async function addPrintPrinter(input: { deviceId: string; name: string; model?: string; connectionType: PrintConnection; address?: string; isDefault?: boolean }) {
+  const id = crypto.randomUUID();
+  const now = new Date();
+  const conn = await getPool().getConnection();
+  try {
+    await conn.beginTransaction();
+    const [device] = await conn.query<RowDataPacket[]>("SELECT id FROM print_devices WHERE id = ? AND status <> 'revoked' FOR UPDATE", [input.deviceId]);
+    if (!device.length) throw new RestaurantError("الجهاز غير موجود", 404);
+    if (input.isDefault) await conn.query("UPDATE print_printers SET isDefault = 0 WHERE deviceId = ?", [input.deviceId]);
+    await conn.query(
+      "INSERT INTO print_printers (id, deviceId, name, model, connectionType, address, isDefault, enabled, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)",
+      [id, input.deviceId, input.name.slice(0, 120), String(input.model || "").slice(0, 120), input.connectionType, String(input.address || "").slice(0, 255), input.isDefault ? 1 : 0, now, now],
+    );
+    await conn.commit();
+    return id;
+  } catch (error) { await conn.rollback(); throw error; }
+  finally { conn.release(); }
+}
+
+export async function revokePrintDevice(id: string) {
+  const conn = await getPool().getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query("UPDATE print_devices SET status = 'revoked', updatedAt = ? WHERE id = ?", [new Date(), id]);
+    await conn.query("UPDATE print_jobs SET status = 'failed', lastError = 'تم إلغاء تسجيل جهاز الطباعة', lastStage = 'failed', leaseUntil = NULL, updatedAt = ? WHERE deviceId = ? AND status IN ('pending','printing')", [new Date(), id]);
+    await conn.commit();
+  } catch (error) { await conn.rollback(); throw error; }
+  finally { conn.release(); }
+}
+
+export async function claimUniversalPrintJob(deviceId: string) {
+  const conn = await getPool().getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.query<RowDataPacket[]>(
+      "SELECT j.id, j.orderId, j.attempts, j.idempotencyKey, j.createdAt, p.id AS printerId, p.connectionType FROM print_jobs j JOIN print_printers p ON p.deviceId = ? AND p.enabled = 1 AND p.isDefault = 1 JOIN print_devices d ON d.id = p.deviceId AND d.status <> 'revoked' WHERE j.status = 'pending' AND (j.deviceId IS NULL OR j.deviceId = ?) ORDER BY j.id LIMIT 1 FOR UPDATE",
+      [deviceId, deviceId],
+    );
+    if (!rows.length) { await conn.commit(); return null; }
+    const row = rows[0];
+    const attempts = Number(row.attempts) + 1;
+    const now = new Date();
+    const leaseUntil = new Date(now.getTime() + 60_000);
+    await conn.query(
+      "UPDATE print_jobs SET status = 'printing', attempts = ?, claimedBy = ?, deviceId = ?, printerId = ?, leaseUntil = ?, lastStage = 'claimed', updatedAt = ? WHERE id = ? AND status = 'pending'",
+      [attempts, deviceId, deviceId, row.printerId, leaseUntil, now, row.id],
+    );
+    await conn.query("INSERT INTO print_job_events (jobId, deviceId, stage, status, message, createdAt) VALUES (?, ?, 'claimed', 'ok', 'تم حجز المهمة للجهاز', ?)", [row.id, deviceId, now]);
+    await conn.commit();
+    const order = await loadOrder(getPool(), Number(row.orderId));
+    if (!order) return null;
+    const { settings } = await getSettings();
+    return {
+      protocolVersion: 1, jobId: Number(row.id), idempotencyKey: String(row.idempotencyKey || ("job-" + row.id)),
+      createdAt: new Date(row.createdAt).toISOString(),
+      document: { encoding: "utf-8", contentType: "text/plain", receiptText: buildReceipt(order, settings.matamly_banner_name || settings.matamly_name || "فتوش الخالدية") },
+      printer: { printerId: String(row.printerId), connectionType: String(row.connectionType), commandSet: String(row.connectionType) === "usb" ? "escpos" : "os-spool" },
+      attempts,
+    };
+  } catch (error) { await conn.rollback(); throw error; }
+  finally { conn.release(); }
+}
+
+export async function recordUniversalPrintStage(input: { jobId: number; deviceId: string; stage: PrintStage; status: "ok" | "failed" | "uncertain"; message?: string }) {
+  const allowed: PrintStage[] = ["claimed", "agent_accepted", "submitted_to_spooler", "printer_acknowledged", "paper_confirmed", "failed", "uncertain"];
+  if (!allowed.includes(input.stage)) throw new RestaurantError("مرحلة الطباعة غير صحيحة");
+  const now = new Date();
+  const conn = await getPool().getConnection();
+  try {
+    await conn.beginTransaction();
+    const [jobs] = await conn.query<RowDataPacket[]>("SELECT id FROM print_jobs WHERE id = ? AND deviceId = ? AND status = 'printing' FOR UPDATE", [input.jobId, input.deviceId]);
+    if (!jobs.length) throw new RestaurantError("مهمة الطباعة غير مملوكة لهذا الجهاز أو انتهت صلاحيتها", 409);
+    await conn.query("UPDATE print_jobs SET lastStage = ?, lastError = ?, leaseUntil = ?, updatedAt = ? WHERE id = ?", [
+      input.stage, input.status === "ok" ? "" : String(input.message || input.status).slice(0, 500), new Date(now.getTime() + 60_000), now, input.jobId,
+    ]);
+    await conn.query("INSERT INTO print_job_events (jobId, deviceId, stage, status, message, createdAt) VALUES (?, ?, ?, ?, ?, ?)", [
+      input.jobId, input.deviceId, input.stage, input.status, String(input.message || "").slice(0, 500), now,
+    ]);
+    if (input.stage === "paper_confirmed") await conn.query("UPDATE print_jobs SET status = 'printed', confirmedAt = ?, leaseUntil = NULL WHERE id = ?", [now, input.jobId]);
+    else if (input.stage === "failed") await conn.query("UPDATE print_jobs SET status = 'failed', leaseUntil = NULL WHERE id = ?", [input.jobId]);
+    else if (input.stage === "uncertain") await conn.query("UPDATE print_jobs SET status = 'failed', lastError = ?, leaseUntil = NULL WHERE id = ?", [String(input.message || "نتيجة الطباعة غير مؤكدة").slice(0, 500), input.jobId]);
+    await conn.commit();
+  } catch (error) { await conn.rollback(); throw error; }
+  finally { conn.release(); }
+}
+
+export async function listPrintJobEvents(jobId: number) {
+  const [rows] = await getPool().query<RowDataPacket[]>("SELECT id, jobId, deviceId, stage, status, message, createdAt FROM print_job_events WHERE jobId = ? ORDER BY id DESC LIMIT 100", [jobId]);
+  return rows;
 }
 
 export async function createStaffSession(role: "admin" | "cashier", token: string) {
