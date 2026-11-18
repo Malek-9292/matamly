@@ -1,6 +1,9 @@
 /** Shared restaurant settings. Browser-only keys such as carts and visit counters are intentionally absent. */
 export const SHARED_SETTING_KEYS = [
   "matamly_name",
+  "matamly_open_time",
+  "matamly_close_time",
+  "matamly_delivery_start_time",
   "matamly_banner_name",
   "matamly_banner_slogan",
   "matamly_banner_size",
