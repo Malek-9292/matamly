@@ -470,7 +470,7 @@ export async function createCustomerOrder(body: Record<string, unknown>) {
       for (const item of order.items) {
         await conn.query("INSERT INTO order_items (orderId, productId, name, qty, price, choicesJson) VALUES (?, ?, ?, ?, ?, ?)", [inserted.insertId, String(item.productId), item.name, item.qty, item.price.toFixed(3), JSON.stringify(item.choices)]);
       }
-      await conn.query("INSERT INTO print_jobs (orderId, kind, status, createdAt, updatedAt) VALUES (?, 'auto', 'pending', ?, ?)", [inserted.insertId, now, now]);
+      await conn.query("INSERT INTO print_jobs (orderId, kind, status, idempotencyKey, createdAt, updatedAt) VALUES (?, 'auto', 'pending', ?, ?, ?)", [inserted.insertId, "order-" + inserted.insertId + "-auto", now, now]);
       await conn.commit();
       const saved = await loadOrder(db, inserted.insertId);
       if (!saved) throw new RestaurantError("تعذر قراءة الطلب بعد حفظه", 500);
@@ -501,7 +501,7 @@ export async function reprintOrder(id: number) {
   const [open] = await db.query<RowDataPacket[]>("SELECT id FROM print_jobs WHERE orderId = ? AND status IN ('pending', 'printing') LIMIT 1", [id]);
   if (!open.length) {
     const now = new Date();
-    await db.query("INSERT INTO print_jobs (orderId, kind, status, createdAt, updatedAt) VALUES (?, 'manual', 'pending', ?, ?)", [id, now, now]);
+    await db.query("INSERT INTO print_jobs (orderId, kind, status, idempotencyKey, createdAt, updatedAt) VALUES (?, 'manual', 'pending', ?, ?, ?)", [id, "order-" + id + "-manual-" + crypto.randomUUID(), now, now]);
   }
   return loadOrder(db, id);
 }
