@@ -28,6 +28,7 @@ import {
   heartbeatPrintDevice,
   listPrintDevices,
   addPrintPrinter,
+  updatePrintPrinter,
   revokePrintDevice,
   claimUniversalPrintJob,
   recordUniversalPrintStage,
@@ -513,6 +514,20 @@ export function registerRestaurantRoutes(app: express.Express) {
     try {
       const id = await addPrintPrinter({ deviceId, name, model: cleanText(req.body?.model, 120), connectionType, address: cleanText(req.body?.address, 255), isDefault: req.body?.isDefault === true });
       res.status(201).json({ ok: true, id });
+    } catch (error) { await sendError(res, error); }
+  });
+  app.put("/api/admin/print/printers/:id", async (req, res) => {
+    if (await roleOf(req) !== "admin") return res.status(403).json({ ok: false });
+    const connectionType = req.body?.connectionType;
+    const name = cleanText(req.body?.name, 120);
+    if (name.length < 2 || !validConnection(connectionType)) return res.status(400).json({ ok: false, message: "بيانات الطابعة غير صحيحة" });
+    try {
+      await updatePrintPrinter(cleanText(req.params.id, 36), {
+        name, model: cleanText(req.body?.model, 120), connectionType,
+        address: cleanText(req.body?.address, 255), enabled: req.body?.enabled !== false,
+        isDefault: req.body?.isDefault === true,
+      });
+      res.json({ ok: true });
     } catch (error) { await sendError(res, error); }
   });
   app.post("/api/print/v1/devices/heartbeat", async (req, res) => {
