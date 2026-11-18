@@ -51,6 +51,14 @@ export default function PrintManagement() {
     }catch(e){setError(e instanceof Error?e.message:"تعذرت إضافة الطابعة");}
     finally{setBusy(false);}
   };
+  const updatePrinter=async(deviceId:string, printer:PrinterInfo, patch:Partial<PrinterInfo>)=>{
+    const next={...printer,...patch};
+    try{
+      const r=await fetch(`/api/admin/print/printers/${printer.id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:next.name,model:next.model,connectionType:next.connectionType,address:"",enabled:next.enabled,isDefault:next.isDefault})});
+      if(!r.ok)throw new Error("تعذر تحديث إعدادات الطابعة");
+      setMessage("تم تحديث إعدادات الطابعة.");await load();
+    }catch(e){setError(e instanceof Error?e.message:"تعذر تحديث الطابعة");}
+  };
   const revoke=async(id:string)=>{
     if(!window.confirm("هل تريد إلغاء تسجيل هذا الجهاز؟ سيتوقف عن استقبال مهام الطباعة."))return;
     try{
@@ -96,7 +104,7 @@ export default function PrintManagement() {
         <div><strong>{device.name}</strong><div style={{fontSize:13,color:"#62746a",marginTop:5}}>{device.platform} · {device.status} · {device.appVersion||"لم يرسل إصدار التطبيق بعد"}</div><div style={{fontSize:12,color:"#839087",marginTop:4}}>آخر اتصال: {device.lastSeenAt?new Date(device.lastSeenAt).toLocaleString("ar-KW"):"لم يتصل بعد"}</div></div>
         <button style={{...button,background:"#fff",color:"#a32929",border:"1px solid #e3c6c6"}} onClick={()=>void revoke(device.id)}><Trash2 size={15} style={{verticalAlign:"middle",marginInlineEnd:6}}/>إلغاء التسجيل</button>
       </div>
-      <div style={{marginTop:12,display:"grid",gap:8}}>{device.printers.length?device.printers.map(p=><div key={p.id} style={{padding:12,borderRadius:10,background:"#f5f8f5",display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}><span><Printer size={15} style={{verticalAlign:"middle",marginInlineEnd:6}}/><strong>{p.name}</strong> · {p.model} · {p.connectionType}</span><small>{p.isDefault?"الافتراضية":"إضافية"} · {p.enabled?"مفعلة":"معطلة"}</small></div>):<small style={{color:"#8b5a21"}}>لم تتم إضافة طابعة لهذا الجهاز بعد.</small>}</div>
+      <div style={{marginTop:12,display:"grid",gap:8}}>{device.printers.length?device.printers.map(p=><div key={p.id} style={{padding:12,borderRadius:10,background:"#f5f8f5",display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}><span><Printer size={15} style={{verticalAlign:"middle",marginInlineEnd:6}}/><strong>{p.name}</strong> · {p.model} · {p.connectionType}</span><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><small>{p.isDefault?"الافتراضية":"إضافية"} · {p.enabled?"مفعلة":"معطلة"}</small><button style={{...button,padding:"6px 9px",fontSize:12}} onClick={()=>void updatePrinter(device.id,p,{isDefault:true,enabled:true})}>تعيين افتراضية</button><button style={{...button,padding:"6px 9px",fontSize:12,background:"#fff",color:"#183d30",border:"1px solid #d7ddd8"}} onClick={()=>void updatePrinter(device.id,p,{enabled:!p.enabled})}>{p.enabled?"تعطيل":"تفعيل"}</button></div></div>):<small style={{color:"#8b5a21"}}>لم تتم إضافة طابعة لهذا الجهاز بعد.</small>}</div>
     </div>)}
   </div>;
 }
