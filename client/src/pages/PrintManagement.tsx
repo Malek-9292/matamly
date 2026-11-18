@@ -3,6 +3,7 @@ import { Copy, Printer, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 
 type PrinterInfo = { id:string; name:string; model:string; connectionType:string; address:string; isDefault:boolean; enabled:boolean };
 type Device = { id:string; name:string; platform:string; status:string; lastSeenAt:string|null; appVersion:string; printers:PrinterInfo[] };
+type PrintJob = { id:number; orderNumber:number; kind:string; status:string; attempts:number; lastError:string; lastStage:string; createdAt:string; deviceName:string|null; printerName:string|null };
 
 const field: React.CSSProperties = { width:"100%", padding:"10px 12px", border:"1px solid #d7ddd8", borderRadius:10, background:"#fff", color:"#17231c" };
 const button: React.CSSProperties = { border:0, borderRadius:10, padding:"10px 14px", background:"#183d30", color:"#fff", fontWeight:700, cursor:"pointer" };
@@ -10,6 +11,7 @@ const panel: React.CSSProperties = { background:"#fff", border:"1px solid #e1e7e
 
 export default function PrintManagement() {
   const [devices,setDevices]=useState<Device[]>([]);
+  const [jobs,setJobs]=useState<PrintJob[]>([]);
   const [name,setName]=useState("");
   const [platform,setPlatform]=useState("android");
   const [newToken,setNewToken]=useState("");
@@ -27,6 +29,9 @@ export default function PrintManagement() {
       const d=await r.json();
       if(!r.ok) throw new Error(d.message||"تعذر تحميل أجهزة الطباعة");
       setDevices(Array.isArray(d.devices)?d.devices:[]);
+      const jr=await fetch("/api/admin/print/jobs?limit=50",{cache:"no-store"});
+      const jd=await jr.json();
+      if(jr.ok)setJobs(Array.isArray(jd.jobs)?jd.jobs:[]);
     } catch(e) { setError(e instanceof Error?e.message:"تعذر تحميل البيانات"); }
   },[]);
   useEffect(()=>{void load();},[load]);
@@ -99,6 +104,12 @@ export default function PrintManagement() {
       <button style={{...button,marginTop:12}} disabled={busy||printerName.trim().length<2} onClick={()=>void addPrinter()}><Printer size={16} style={{verticalAlign:"middle",marginInlineEnd:6}}/>حفظ الطابعة كافتراضية</button>
     </div>}
     <h3>الأجهزة المسجلة ({devices.length})</h3>
+    <h3 style={{marginTop:24}}>سجل الطباعة الأخير ({jobs.length})</h3>
+    <div style={panel}>
+      {jobs.length===0?<div>لا توجد مهام طباعة حتى الآن.</div>:<div style={{display:"grid",gap:8}}>{jobs.map(job=><div key={job.id} style={{padding:12,borderRadius:10,background:"#f5f8f5",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8,fontSize:13}}>
+        <strong>طلب #{job.orderNumber}</strong><span>المهمة: {job.id} · {job.kind==="auto"?"تلقائية":"يدوية"}</span><span>الحالة: {job.status} · المرحلة: {job.lastStage}</span><span>المحاولات: {job.attempts}</span><span>الجهاز: {job.deviceName||"غير معين"}</span><span>الطابعة: {job.printerName||"غير معينة"}</span>{job.lastError&&<span style={{color:"#a32929"}}>الخطأ: {job.lastError}</span>}
+      </div>)}</div>}
+    </div>
     {devices.length===0?<div style={panel}>لا توجد أجهزة مسجلة حتى الآن.</div>:devices.map(device=><div key={device.id} style={panel}>
       <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}>
         <div><strong>{device.name}</strong><div style={{fontSize:13,color:"#62746a",marginTop:5}}>{device.platform} · {device.status} · {device.appVersion||"لم يرسل إصدار التطبيق بعد"}</div><div style={{fontSize:12,color:"#839087",marginTop:4}}>آخر اتصال: {device.lastSeenAt?new Date(device.lastSeenAt).toLocaleString("ar-KW"):"لم يتصل بعد"}</div></div>
