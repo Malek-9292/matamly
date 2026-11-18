@@ -13,7 +13,7 @@ export type ReceiptOrder = {
   items: { name: string; qty: number; price: number; choices?: string[] }[];
 };
 
-/** Plain-text receipt for the operating-system print interface. No printer-vendor commands. */
+/** One complete, plain-text receipt. Keep customer and kitchen details together. */
 export function buildReceipt(order: ReceiptOrder, restaurantName: string) {
   const when = new Date(order.createdAt);
   const stamp = Number.isNaN(when.getTime())
@@ -21,25 +21,31 @@ export function buildReceipt(order: ReceiptOrder, restaurantName: string) {
     : new Intl.DateTimeFormat("ar-KW", { timeZone: "Asia/Kuwait", dateStyle: "short", timeStyle: "short" }).format(when);
   const lines = [
     restaurantName || "فتوش الخالدية",
-    `طلب رقم ${order.orderNumber}`,
-    stamp,
-    order.serviceMode === "delivery" ? "توصيل" : "استلام من المطعم",
-    `${order.customer.name} - ${order.customer.phone}`,
+    "================================",
+    `رقم الطلب: ${order.orderNumber}`,
+    `التاريخ والوقت: ${stamp}`,
+    order.serviceMode === "delivery" ? "طريقة الطلب: توصيل" : "طريقة الطلب: استلام من المطعم",
+    "--------------------------------",
+    "بيانات العميل",
+    `الاسم: ${order.customer.name}`,
+    `الهاتف: ${order.customer.phone}`,
   ];
   if (order.serviceMode === "delivery") {
-    if (order.zone) lines.push(order.zone);
-    if (order.address) lines.push(order.address);
+    if (order.zone) lines.push(`المنطقة: ${order.zone}`);
+    if (order.address) lines.push(`العنوان: ${order.address}`);
   }
-  lines.push("----------------");
+  lines.push("--------------------------------", "تفاصيل الطلب");
   for (const item of order.items) {
-    lines.push(`${item.qty} x ${item.name}  ${(item.price * item.qty).toFixed(3)}`);
-    if (item.choices?.length) lines.push(`   ${item.choices.join("، ")}`);
+    lines.push(`${item.name}`, `الكمية: ${item.qty}    السعر: ${(item.price * item.qty).toFixed(3)} د.ك`);
+    if (item.choices?.length) lines.push(`الاختيارات: ${item.choices.join("، ")}`);
+    lines.push("--------------------------------");
   }
-  lines.push("----------------");
-  lines.push(`الطعام ${order.foodTotal.toFixed(3)}`);
-  lines.push(`التوصيل ${order.deliveryFee.toFixed(3)}`);
-  lines.push(`الإجمالي ${order.total.toFixed(3)}`);
-  lines.push(order.payment || "الدفع عند الاستلام");
-  if (order.notes) lines.push(`ملاحظات: ${order.notes}`);
-  return lines.join("\n");
+  lines.push(
+    `قيمة الطعام: ${order.foodTotal.toFixed(3)} د.ك`,
+    `رسوم التوصيل: ${order.deliveryFee.toFixed(3)} د.ك`,
+    `الإجمالي: ${order.total.toFixed(3)} د.ك`,
+    `طريقة الدفع: ${order.payment || "الدفع عند الاستلام"}`,
+  );
+  if (order.notes) lines.push(`ملاحظات الطلب: ${order.notes}`);
+  return lines.join("\\n");
 }
