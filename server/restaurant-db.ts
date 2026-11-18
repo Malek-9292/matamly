@@ -56,7 +56,7 @@ function rows<T extends RowDataPacket>(value: unknown) {
 
 async function applySqlFile(db: Pool, fileName: string) {
   const sql = await readFile(path.join(process.cwd(), "drizzle", fileName), "utf8");
-  const statements = sql.split(/;\\s*(?:\\r?\\n|$)/).map((part) => part.trim()).filter((part) => part && !part.startsWith("--"));
+  const statements = sql.split(/;\s*(?:\r?\n|$)/).map((part) => part.trim()).filter((part) => part && !part.startsWith("--"));
   for (const statement of statements) await db.query(statement);
 }
 
