@@ -86,7 +86,7 @@ function kuwaitMinutesNow() {
 }
 
 function clockMinutes(value: unknown, fallback: string) {
-  const clock = typeof value === "string" && /^([01]\\d|2[0-3]):[0-5]\\d$/.test(value) ? value : fallback;
+  const clock = typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : fallback;
   const [hour, minute] = clock.split(":").map(Number);
   return hour * 60 + minute;
 }
