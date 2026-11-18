@@ -47,5 +47,5 @@ export function buildReceipt(order: ReceiptOrder, restaurantName: string) {
     `طريقة الدفع: ${order.payment || "الدفع عند الاستلام"}`,
   );
   if (order.notes) lines.push(`ملاحظات الطلب: ${order.notes}`);
-  return lines.join("\\n");
+  return lines.join("\n");
 }
