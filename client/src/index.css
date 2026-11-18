@@ -151,3 +151,16 @@
 .rating-stars{display:flex;gap:4px;direction:ltr}
 .rating-stars button{border:0;background:transparent;color:#d49a22;font-size:23px;line-height:1;cursor:pointer;padding:2px}
 .rating-stars button:active{transform:scale(.92)}
+
+
+/* Fatoosh category cards refresh */
+.site-shell .category-cards{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:16px!important;overflow:visible!important;padding:8px 0 18px!important}
+.site-shell .category-cards button{position:relative!important;display:block!important;width:100%!important;min-width:0!important;height:auto!important;aspect-ratio:1.62/1!important;padding:0!important;overflow:hidden!important;border:0!important;border-radius:16px!important;background:linear-gradient(135deg,#173d30,#0d251d)!important;box-shadow:0 7px 20px #123c2f1c!important;color:#fff!important;text-align:right!important;isolation:isolate}
+.site-shell .category-cards button img{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;border-radius:0!important;object-fit:cover!important;transition:transform .45s ease,filter .35s ease!important;outline:0!important}
+.site-shell .category-cards button::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.02) 20%,rgba(0,0,0,.18) 48%,rgba(0,0,0,.78) 100%);z-index:1;pointer-events:none}
+.site-shell .category-cards button .category-placeholder{position:absolute;inset:0;width:100%!important;height:100%!important;border-radius:0!important;background:radial-gradient(circle at 50% 15%,#28634b 0,transparent 48%),linear-gradient(135deg,#173d30,#0b211a)!important;outline:0!important}
+.site-shell .category-cards button>span:last-child{position:absolute;z-index:2;inset:auto 0 0;padding:36px 15px 13px!important;color:#fff!important;font-size:15px!important;font-weight:700!important;line-height:1.45!important;text-align:right!important;background:transparent!important;text-shadow:0 2px 8px #0009}
+.site-shell .category-cards button.active{outline:3px solid #c99532!important;outline-offset:2px!important;color:#fff!important}
+.site-shell .category-cards button:hover img{transform:scale(1.06);filter:saturate(1.12)}
+@media(max-width:700px){.site-shell .category-cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;padding:8px 0 16px!important}.site-shell .category-cards button{aspect-ratio:1.55/1!important;border-radius:13px!important}.site-shell .category-cards button>span:last-child{font-size:13px!important;padding:30px 11px 10px!important}}
+@media(min-width:701px) and (max-width:1050px){.site-shell .category-cards{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
