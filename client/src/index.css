@@ -127,3 +127,18 @@
   .admin-sidebar nav button:last-child{grid-column:1/-1}
   .admin-main{padding:20px 12px!important}
 }
+
+@media print{
+  body:has(.cashier-shell) .cashier-order{font-size:14px!important;line-height:1.55!important}
+  body:has(.cashier-shell) .cashier-order .order-head h2{font-size:21px!important;font-weight:800!important;margin:3px 0!important}
+  body:has(.cashier-shell) .cashier-order .order-head p{font-size:13px!important}
+  body:has(.cashier-shell) .cashier-order .order-meta{font-size:14px!important;line-height:1.7!important;color:#111!important;border:1px solid #aaa!important;padding:8px!important;margin-top:8px!important}
+  body:has(.cashier-shell) .cashier-order .order-items{gap:0!important;margin:12px 0!important;padding:0!important;border-top:2px solid #111!important;border-bottom:2px solid #111!important}
+  body:has(.cashier-shell) .cashier-order .cashier-item{padding:9px 2px!important;border-bottom:1px dashed #888!important;align-items:flex-start!important}
+  body:has(.cashier-shell) .cashier-order .cashier-item strong{font-size:20px!important;font-weight:900!important;color:#000!important;line-height:1.45!important}
+  body:has(.cashier-shell) .cashier-order .cashier-item span{font-size:15px!important;font-weight:700!important;color:#000!important;white-space:nowrap!important}
+  body:has(.cashier-shell) .cashier-order .cashier-item small{font-size:14px!important;font-weight:700!important;color:#111!important}
+  body:has(.cashier-shell) .cashier-order .order-total{font-size:14px!important}
+  body:has(.cashier-shell) .cashier-order .order-total>strong{font-size:25px!important;font-weight:900!important}
+  body:has(.cashier-shell) .cashier-order .order-status,.cashier-order .print-state{display:none!important}
+}
