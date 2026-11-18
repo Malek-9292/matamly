@@ -36,6 +36,8 @@ export const SHARED_SETTING_KEYS = [
   "matamly_shape",
   "matamly_layout",
   "matamly_category_images",
+  "matamly_home_category_limit",
+  "matamly_home_category_products",
   "matamly_category_order",
   "matamly_category_card_height",
   "matamly_category_card_shape",
