@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { validPlatform, validConnection, validStage } from "./print-core/protocol";
+import { validPlatform, validConnection, validStage, type PrintStage } from "./print-core/protocol";
 import { customerAccountId, getCustomerAccountStats, registerCustomerAccountRoutes } from "./customer-account";
 import type express from "express";
 import {
