@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { customerAccountId, getCustomerAccountStats, registerCustomerAccountRoutes } from "./customer-account";
 import type express from "express";
 import {
   RestaurantError,
@@ -105,6 +106,12 @@ async function sendError(res: express.Response, error: unknown) {
 }
 
 export function registerRestaurantRoutes(app: express.Express) {
+  registerCustomerAccountRoutes(app);
+  app.get("/api/admin/customer-stats", async (req, res) => {
+    if (await roleOf(req) !== "admin") return res.status(401).json({ ok: false });
+    try { res.setHeader("Cache-Control", "no-store"); return res.json({ ok: true, stats: await getCustomerAccountStats() }); }
+    catch (error) { return sendError(res, error); }
+  });
   app.post("/api/orders", async (req, res) => {
     const wait = limited(orderAttempts, req.ip || "unknown", 20, 10 * 60 * 1000);
     if (wait) {
@@ -124,7 +131,8 @@ export function registerRestaurantRoutes(app: express.Express) {
       if (serviceMode === "delivery" && !isWithinOvernightWindow(now, deliveryStart, close)) {
         return res.status(403).json({ ok: false, message: `التوصيل يبدأ الساعة ${settings.matamly_delivery_start_time || "11:30"}` });
       }
-      const order = await createCustomerOrder(req.body ?? {});
+      const accountId = await customerAccountId(req);
+      const order = await createCustomerOrder({ ...(req.body ?? {}), customerAccountId: accountId });
       return res.status(201).json({ ok: true, id: order.id, orderNumber: order.orderNumber, total: order.total, foodTotal: order.foodTotal, deliveryFee: order.deliveryFee, items: order.items });
     } catch (error) { return sendError(res, error); }
   });
