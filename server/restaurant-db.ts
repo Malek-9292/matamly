@@ -82,7 +82,11 @@ export async function migrate(db = getPool()) {
     await applySqlFile(db, "0002_product_ratings.sql");
     await db.query("INSERT INTO schema_migrations (id) VALUES ('0002_product_ratings')");
   }
-  for (const table of ["users", "schema_migrations", "app_settings", "documents", "delivery_areas", "delivery_groups", "delivery_group_areas", "order_counters", "orders", "order_items", "print_jobs", "staff_sessions"]) {
+  if (!(await applied(db, "0003_customer_accounts"))) {
+    await applySqlFile(db, "0003_customer_accounts.sql");
+    await db.query("INSERT INTO schema_migrations (id) VALUES ('0003_customer_accounts')");
+  }
+  for (const table of ["users", "schema_migrations", "app_settings", "documents", "delivery_areas", "delivery_groups", "delivery_group_areas", "order_counters", "orders", "order_items", "print_jobs", "staff_sessions", "customer_accounts", "customer_sessions", "customer_session_events", "customer_addresses"]) {
     await db.query(`ALTER TABLE \`${table}\` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
   }
 }
@@ -454,9 +458,9 @@ export async function createCustomerOrder(body: Record<string, unknown>) {
       const now = new Date();
       const order = prepared.order;
       const [inserted] = await conn.query<ResultSetHeader>(
-        `INSERT INTO orders (orderNumber, clientRequestId, customerName, customerPhone, serviceMode, areaId, areaName, address, notes, payment, foodTotal, deliveryFee, minimumOrder, minimumMet, total, status, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'new', ?, ?)`,
-        [orderNumber, requestId, order.customerName, order.customerPhone, order.serviceMode, order.areaId, order.areaName, order.address, order.notes, order.payment, order.foodTotal.toFixed(3), order.deliveryFee.toFixed(3), order.minimumOrder.toFixed(3), order.total.toFixed(3), now, now],
+        `INSERT INTO orders (orderNumber, clientRequestId, customerAccountId, customerName, customerPhone, serviceMode, areaId, areaName, address, notes, payment, foodTotal, deliveryFee, minimumOrder, minimumMet, total, status, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'new', ?, ?)`,
+        [orderNumber, requestId, body.customerAccountId || null, order.customerName, order.customerPhone, order.serviceMode, order.areaId, order.areaName, order.address, order.notes, order.payment, order.foodTotal.toFixed(3), order.deliveryFee.toFixed(3), order.minimumOrder.toFixed(3), order.total.toFixed(3), now, now],
       );
       for (const item of order.items) {
         await conn.query("INSERT INTO order_items (orderId, productId, name, qty, price, choicesJson) VALUES (?, ?, ?, ?, ?, ?)", [inserted.insertId, String(item.productId), item.name, item.qty, item.price.toFixed(3), JSON.stringify(item.choices)]);
