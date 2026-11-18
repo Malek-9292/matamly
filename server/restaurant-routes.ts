@@ -11,6 +11,8 @@ import {
   finishPrintJob,
   getJsonDocument,
   getMenu,
+  getProductRatingSummary,
+  submitProductRating,
   getSettings,
   initRestaurant,
   listAreaModel,
@@ -163,6 +165,26 @@ export function registerRestaurantRoutes(app: express.Express) {
       const result = await saveSettings(incoming, Number(req.body?.revision));
       if (result.conflict) return res.status(409).json({ ok: false, message: "تغيرت الإعدادات من جهاز آخر. أعد تحميل الصفحة قبل الحفظ.", revision: result.revision });
       res.json({ ok: true, revision: result.revision });
+    } catch (error) { await sendError(res, error); }
+  });
+
+  app.get("/api/product-ratings", async (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    try { res.json({ ratings: await getProductRatingSummary() }); }
+    catch (error) { await sendError(res, error); }
+  });
+
+  app.post("/api/product-ratings", async (req, res) => {
+    const wait = limited(orderAttempts, req.ip || "unknown", 20, 10 * 60 * 1000);
+    if (wait) return res.status(429).json({ ok: false, message: "محاولات كثيرة. حاول بعد قليل." });
+    try {
+      const result = await submitProductRating({
+        orderNumber: Number(req.body?.orderNumber),
+        phone: cleanText(req.body?.phone, 30),
+        productId: cleanText(req.body?.productId, 32),
+        rating: Number(req.body?.rating),
+      });
+      res.status(201).json({ ok: true, rating: result });
     } catch (error) { await sendError(res, error); }
   });
 
