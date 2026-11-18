@@ -29,6 +29,12 @@ class PrintService : Service() {
     private val prefs by lazy { getSharedPreferences("matamly_print", Context.MODE_PRIVATE) }
     private val seen = LinkedHashSet<String>()
 
+    override fun onCreate() {
+        super.onCreate()
+        val saved = prefs.getString("seen_jobs", "") ?: ""
+        saved.split("|").filter { it.isNotBlank() }.forEach { seen.add(it) }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(7, notification())
@@ -67,8 +73,10 @@ class PrintService : Service() {
         while (running.get()) {
             try {
                 api("/api/print/v1/devices/heartbeat", JSONObject().put("appVersion", "1.0.0").put("capabilities", JSONObject().put("platform", "android").put("transports", org.json.JSONArray().put("usb-escpos"))))
-                val job = api("/api/print/v1/jobs/claim").optJSONObject("job")
-                if (job != null) processJob(job)
+                if (hasUsbPrinterPermission()) {
+                    val job = api("/api/print/v1/jobs/claim").optJSONObject("job")
+                    if (job != null) processJob(job)
+                }
             } catch (_: Exception) { }
             try { Thread.sleep(2500) } catch (_: InterruptedException) { Thread.currentThread().interrupt(); break }
         }
@@ -115,6 +123,11 @@ class PrintService : Service() {
             }
             connection.releaseInterface(intf)
         } finally { connection.close() }
+    }
+
+    private fun hasUsbPrinterPermission(): Boolean {
+        val manager = getSystemService(Context.USB_SERVICE) as UsbManager
+        return manager.deviceList.values.any { manager.hasPermission(it) && findBulkOut(it) != null }
     }
 
     private fun findBulkOut(device: UsbDevice): Pair<android.hardware.usb.UsbInterface, android.hardware.usb.UsbEndpoint>? {
