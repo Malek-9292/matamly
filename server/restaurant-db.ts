@@ -38,7 +38,16 @@ export function getPool() {
     password: decodeURIComponent(connectionUrl.password),
     database,
     ...(sslMode === "REQUIRED" ? { ssl: {} } : {}),
-    connectionLimit: 10,
+    // Keep idle sockets shorter than Enzonic's 5-minute scale-to-zero window,
+    // so mysql2 does not hand requests a socket that the sleeping DB has closed.
+    connectionLimit: 5,
+    maxIdle: 2,
+    idleTimeout: 4 * 60 * 1000,
+    waitForConnections: true,
+    queueLimit: 0,
+    connectTimeout: 30 * 1000,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
     charset: "utf8mb4",
     timezone: "Z",
   };
