@@ -4,6 +4,7 @@ export const SHARED_SETTING_KEYS = [
   "matamly_open_time",
   "matamly_close_time",
   "matamly_delivery_start_time",
+  "matamly_min_order",
   "matamly_banner_name",
   "matamly_banner_slogan",
   "matamly_banner_size",
