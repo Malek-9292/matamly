@@ -79,3 +79,13 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </trpc.Provider>
 );
+
+// PWA: keep the existing app and API online-first. The service worker only
+// caches the static application shell; it never stores API responses or sessions.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(error => {
+      console.error("[PWA] Service worker registration failed:", error);
+    });
+  });
+}
