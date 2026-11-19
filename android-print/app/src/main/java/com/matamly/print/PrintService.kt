@@ -207,7 +207,7 @@ class PrintService : Service() {
     }
 
     private fun rasterReceipt(text: String): ByteArray {
-        val width = 576
+        val width = if (prefs.getInt("printer_width", 576) == 384) 384 else 576
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.BLACK
             textSize = 27f
