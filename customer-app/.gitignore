@@ -1,0 +1,5 @@
+# Native projects are generated locally by Capacitor; CI creates fresh projects for reproducible prototype builds.
+android/
+ios/
+node_modules/
+.DS_Store

@@ -1,9 +1,10 @@
-name: Android Print APK
+name: Matamly Android Cashier APK
 on:
   push:
-    branches: [development]
+    branches: [development, feature/unified-android-cashier]
     paths:
       - "android-print/**"
+      - "server/restaurant-db.ts"
       - ".github/workflows/android-print.yml"
   workflow_dispatch:
 jobs:
@@ -26,6 +27,6 @@ jobs:
         run: gradle :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: matamly-print-android-debug
+          name: matamly-android-cashier-debug
           path: android-print/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

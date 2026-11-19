@@ -29,7 +29,7 @@ const statusLabels: Record<Order["status"], string> = {
   new: "جديد", processing: "قيد التجهيز", ready: "جاهز", completed: "مكتمل", cancelled: "ملغي",
 };
 const printLabels: Record<Order["printStatus"], string> = {
-  pending: "بانتظار الطباعة", printing: "جارٍ الإرسال للطابعة", printed: "تم تأكيد الطباعة", failed: "فشلت الطباعة", none: "بدون مهمة طباعة",
+  pending: "بانتظار الطباعة", printing: "جارٍ الإرسال للطابعة", printed: "تم إرسال الطلب للطابعة", failed: "فشلت الطباعة", none: "بدون مهمة طباعة",
 };
 
 export default function Cashier() {

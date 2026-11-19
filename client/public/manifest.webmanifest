@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "فتوش الخالدية",
+  "short_name": "فتوش",
+  "description": "اطلب الاستلام أو التوصيل مباشرة من مطعم فتوش الخالدية",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#3A4A37",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

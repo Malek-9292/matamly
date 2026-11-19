@@ -43,7 +43,7 @@ export type PrintJobEnvelope = {
   idempotencyKey: string;
   createdAt: string;
   document: { encoding: "utf-8"; contentType: "text/plain"; receiptText: string };
-  printer: { printerId: string | null; connectionType: PrintConnection | "system"; commandSet: "escpos" | "os-spool" };
+  printer: { printerId: string | null; connectionType: PrintConnection | "system"; address?: string; commandSet: "escpos" | "os-spool" };
 };
 
 export function buildJobEnvelope(input: {
@@ -53,6 +53,7 @@ export function buildJobEnvelope(input: {
   receiptText: string;
   printerId?: string | null;
   connectionType?: PrintConnection | "system";
+  address?: string;
   commandSet?: "escpos" | "os-spool";
 }): PrintJobEnvelope {
   return {
@@ -64,6 +65,7 @@ export function buildJobEnvelope(input: {
     printer: {
       printerId: input.printerId ?? null,
       connectionType: input.connectionType ?? "system",
+      ...(input.address ? { address: input.address } : {}),
       commandSet: input.commandSet ?? "os-spool",
     },
   };
