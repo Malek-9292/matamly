@@ -4,6 +4,8 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -12,15 +14,17 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.IBinder
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONObject
 
@@ -46,8 +50,8 @@ class PrintService : Service() {
     private fun notification(): Notification {
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) manager.createNotificationChannel(NotificationChannel("matamly_print", "Matamly Print", NotificationManager.IMPORTANCE_LOW))
-        return if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, "matamly_print").setContentTitle("Matamly Print").setContentText("خدمة الطباعة التلقائية تعمل").setSmallIcon(android.R.drawable.ic_menu_manage).build()
-        else Notification.Builder(this).setContentTitle("Matamly Print").setContentText("خدمة الطباعة التلقائية تعمل").setSmallIcon(android.R.drawable.ic_menu_manage).build()
+        return if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, "matamly_print").setContentTitle("Matamly").setContentText("خدمة استقبال وطباعة الطلبات تعمل").setSmallIcon(android.R.drawable.ic_menu_manage).build()
+        else Notification.Builder(this).setContentTitle("Matamly").setContentText("خدمة استقبال وطباعة الطلبات تعمل").setSmallIcon(android.R.drawable.ic_menu_manage).build()
     }
 
     private fun api(path: String, body: JSONObject? = null): JSONObject {
@@ -55,7 +59,8 @@ class PrintService : Service() {
         val token = prefs.getString("token", "") ?: ""
         val connection = (URL(base + path).openConnection() as HttpURLConnection).apply {
             requestMethod = if (body == null) "GET" else "POST"
-            connectTimeout = 12000; readTimeout = 20000
+            connectTimeout = 12000
+            readTimeout = 20000
             setRequestProperty("Authorization", "Bearer $token")
             setRequestProperty("Content-Type", "application/json")
             if (body != null) { doOutput = true; outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) } }
@@ -72,8 +77,12 @@ class PrintService : Service() {
     private fun workLoop() {
         while (running.get()) {
             try {
-                api("/api/print/v1/devices/heartbeat", JSONObject().put("appVersion", "1.0.0").put("capabilities", JSONObject().put("platform", "android").put("transports", org.json.JSONArray().put("usb-escpos"))))
-                if (hasUsbPrinterPermission()) {
+                val transport = prefs.getString("printer_connection", "usb") ?: "usb"
+                val transports = org.json.JSONArray().put("usb-escpos").put("network-escpos").put("bluetooth-spp")
+                api("/api/print/v1/devices/heartbeat", JSONObject()
+                    .put("appVersion", "1.1.0")
+                    .put("capabilities", JSONObject().put("platform", "android").put("transports", transports)))
+                if (printerReady(transport)) {
                     val job = api("/api/print/v1/jobs/claim").optJSONObject("job")
                     if (job != null) processJob(job)
                 }
@@ -82,6 +91,22 @@ class PrintService : Service() {
         }
     }
 
+    private fun printerReady(transport: String): Boolean = when (transport) {
+        "usb" -> {
+            val manager = getSystemService(Context.USB_SERVICE) as UsbManager
+            val vendor = prefs.getInt("usb_vendor_id", -1)
+            val product = prefs.getInt("usb_product_id", -1)
+            manager.deviceList.values.any { it.vendorId == vendor && it.productId == product && manager.hasPermission(it) && findBulkOut(it) != null }
+        }
+        "network" -> !prefs.getString("printer_address", "").isNullOrBlank()
+        "bluetooth" -> !prefs.getString("printer_address", "").isNullOrBlank() &&
+            (Build.VERSION.SDK_INT < 31 || checkBluetoothPermission())
+        else -> false
+    }
+
+    private fun checkBluetoothPermission(): Boolean =
+        Build.VERSION.SDK_INT < 31 || checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
     private fun report(id: Int, stage: String, status: String, message: String = "") {
         api("/api/print/v1/jobs/$id/stage", JSONObject().put("stage", stage).put("status", status).put("message", message))
     }
@@ -89,33 +114,71 @@ class PrintService : Service() {
     private fun processJob(job: JSONObject) {
         val id = job.getInt("jobId")
         val key = job.optString("idempotencyKey", "job-$id")
-        if (seen.contains(key)) { report(id, "uncertain", "uncertain", "المهمة موجودة في سجل الجهاز؛ تم منع التكرار"); return }
-        report(id, "agent_accepted", "ok", "استلم تطبيق Android المهمة")
+        if (seen.contains(key)) {
+            report(id, "uncertain", "uncertain", "المهمة موجودة في سجل الجهاز؛ تم منع التكرار")
+            return
+        }
+        report(id, "agent_accepted", "ok", "استلم تطبيق Matamly المهمة")
         try {
-            val envelope = job.getJSONObject("document")
-            val receipt = envelope.getString("receiptText")
-            printUsb(receipt)
+            val receipt = job.getJSONObject("document").getString("receiptText")
+            val printer = job.optJSONObject("printer") ?: JSONObject()
+            val transport = printer.optString("connectionType", prefs.getString("printer_connection", "usb"))
+            val address = printer.optString("address", prefs.getString("printer_address", "") ?: "")
+            when (transport) {
+                "usb" -> printUsb(receipt)
+                "network" -> printNetwork(receipt, address)
+                "bluetooth" -> printBluetooth(receipt, address)
+                else -> throw IllegalStateException("طريقة الطباعة غير مدعومة في هذا الإصدار: $transport")
+            }
             seen.add(key)
             prefs.edit().putString("seen_jobs", seen.toList().takeLast(500).joinToString("|")).apply()
-            report(id, "submitted_to_spooler", "ok", "تم إرسال بيانات ESC/POS إلى منفذ USB؛ لم يتوفر تأكيد حساس خروج الورق")
+            report(id, "submitted_to_spooler", "ok", "تم إرسال بيانات ESC/POS إلى الطابعة. لا يتوفر تأكيد خروج الورق.")
         } catch (e: Exception) {
-            report(id, "failed", "failed", (e.message ?: "USB print failed").take(450))
+            report(id, "failed", "failed", (e.message ?: "Print failed").take(450))
         }
+    }
+
+    private fun printNetwork(text: String, address: String) {
+        val parts = address.trim().split(":")
+        val host = parts.firstOrNull().orEmpty()
+        val port = if (parts.size > 1) parts.last().toIntOrNull() ?: 9100 else 9100
+        if (host.isBlank() || port !in 1..65535) throw IllegalStateException("عنوان طابعة الشبكة غير صحيح؛ استخدم IP:9100")
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(host, port), 7000)
+            socket.soTimeout = 7000
+            socket.getOutputStream().use { it.write(escPosReceipt(text)); it.flush() }
+        }
+    }
+
+    private fun printBluetooth(text: String, address: String) {
+        if (!checkBluetoothPermission()) throw IllegalStateException("يلزم منح إذن Bluetooth من إعدادات التطبيق")
+        val adapter = (getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter ?: throw IllegalStateException("Bluetooth غير متوفر على هذا الجهاز")
+        val device = adapter.getRemoteDevice(address)
+        val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+        val socket = device.createRfcommSocketToServiceRecord(uuid)
+        try {
+            adapter.cancelDiscovery()
+            socket.connect()
+            socket.outputStream.use { it.write(escPosReceipt(text)); it.flush() }
+        } finally { try { socket.close() } catch (_: Exception) { } }
     }
 
     private fun printUsb(text: String) {
         val manager = getSystemService(Context.USB_SERVICE) as UsbManager
-        val device = manager.deviceList.values.firstOrNull() ?: throw IllegalStateException("لم يتم اكتشاف طابعة USB")
-        if (!manager.hasPermission(device)) throw IllegalStateException("لم يتم منح إذن USB للطابعة")
+        val vendor = prefs.getInt("usb_vendor_id", -1)
+        val product = prefs.getInt("usb_product_id", -1)
+        val device = manager.deviceList.values.firstOrNull { it.vendorId == vendor && it.productId == product }
+            ?: throw IllegalStateException("لم يتم العثور على طابعة USB المختارة")
+        if (!manager.hasPermission(device)) throw IllegalStateException("إذن USB للطابعة غير متاح؛ افتح التطبيق وامنح الإذن مرة أخرى")
         val pair = findBulkOut(device) ?: throw IllegalStateException("الطابعة لا تعرض USB bulk OUT متوافقًا")
         val connection = manager.openDevice(device) ?: throw IllegalStateException("تعذر فتح اتصال USB")
         try {
             val (intf, endpoint) = pair
             if (!connection.claimInterface(intf, true)) throw IllegalStateException("تعذر حجز واجهة USB")
-            val bytes = rasterReceipt(text)
+            val bytes = escPosReceipt(text)
             var offset = 0
             while (offset < bytes.size) {
-                val size = minOf(16384, bytes.size - offset)
+                val size = minOf(8192, bytes.size - offset)
                 val chunk = bytes.copyOfRange(offset, offset + size)
                 val sent = connection.bulkTransfer(endpoint, chunk, chunk.size, 10000)
                 if (sent <= 0) throw IllegalStateException("فشل إرسال بيانات USB")
@@ -123,11 +186,6 @@ class PrintService : Service() {
             }
             connection.releaseInterface(intf)
         } finally { connection.close() }
-    }
-
-    private fun hasUsbPrinterPermission(): Boolean {
-        val manager = getSystemService(Context.USB_SERVICE) as UsbManager
-        return manager.deviceList.values.any { manager.hasPermission(it) && findBulkOut(it) != null }
     }
 
     private fun findBulkOut(device: UsbDevice): Pair<android.hardware.usb.UsbInterface, android.hardware.usb.UsbEndpoint>? {
@@ -141,17 +199,33 @@ class PrintService : Service() {
         return null
     }
 
+    private fun escPosReceipt(text: String): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        out.write(byteArrayOf(0x1b, 0x40))
+        out.write(rasterReceipt(text))
+        out.write(byteArrayOf(0x0a, 0x0a, 0x0a, 0x1d, 0x56, 0x00))
+        return out.toByteArray()
+    }
+
     private fun rasterReceipt(text: String): ByteArray {
         val width = 576
-        val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 27f; typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL) }
+        val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.BLACK
+            textSize = 27f
+            typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
+        }
         val layout = StaticLayout.Builder.obtain(text, 0, text.length, paint, width - 24)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setTextDirection(android.text.TextDirectionHeuristics.FIRSTSTRONG_RTL)
             .setIncludePad(true).build()
         val bitmap = Bitmap.createBitmap(width, layout.height + 24, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap); canvas.drawColor(Color.WHITE); canvas.save(); canvas.translate(12f, 12f); layout.draw(canvas); canvas.restore()
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.WHITE)
+        canvas.save()
+        canvas.translate(12f, 12f)
+        layout.draw(canvas)
+        canvas.restore()
         val out = java.io.ByteArrayOutputStream()
-        out.write(byteArrayOf(0x1b, 0x40))
         val rowBytes = width / 8
         for (y in 0 until bitmap.height step 256) {
             val rows = minOf(256, bitmap.height - y)
@@ -170,7 +244,6 @@ class PrintService : Service() {
                 }
             }
         }
-        out.write(byteArrayOf(0x0a, 0x0a, 0x0a, 0x1d, 0x56, 0x00))
         bitmap.recycle()
         return out.toByteArray()
     }
