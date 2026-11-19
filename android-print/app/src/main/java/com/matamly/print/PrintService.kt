@@ -17,6 +17,7 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -31,12 +32,32 @@ import org.json.JSONObject
 class PrintService : Service() {
     private val running = AtomicBoolean(false)
     private val prefs by lazy { getSharedPreferences("matamly_print", Context.MODE_PRIVATE) }
-    private val seen = LinkedHashSet<String>()
+    private val jobStates = JSONObject()
+    private val stateLock = Any()
 
     override fun onCreate() {
         super.onCreate()
-        val saved = prefs.getString("seen_jobs", "") ?: ""
-        saved.split("|").filter { it.isNotBlank() }.forEach { seen.add(it) }
+        try {
+            val saved = JSONObject(prefs.getString("job_states", "{}") ?: "{}")
+            val keys = saved.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val state = saved.optJSONObject(key) ?: continue
+                if (state.optString("state") == "printing") {
+                    state.put("state", "uncertain")
+                    state.put("updatedAt", System.currentTimeMillis())
+                    state.put("message", "أُعيد تشغيل التطبيق أثناء محاولة الطباعة؛ يلزم التحقق من الورق قبل إعادة المحاولة")
+                }
+                jobStates.put(key, state)
+            }
+        } catch (e: Exception) {
+            Log.e("MatamlyPrint", "Could not restore durable print states", e)
+        }
+        val legacySeen = (prefs.getString("seen_jobs", "") ?: "").split("|").filter { it.isNotBlank() }
+        legacySeen.forEach { key ->
+            if (!jobStates.has(key)) jobStates.put(key, JSONObject().put("state", "submitted").put("updatedAt", System.currentTimeMillis()).put("message", "سجل طباعة سابق"))
+        }
+        persistJobStates()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -86,7 +107,10 @@ class PrintService : Service() {
                     val job = api("/api/print/v1/jobs/claim").optJSONObject("job")
                     if (job != null) processJob(job)
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.e("MatamlyPrint", "Print worker loop failed", e)
+                prefs.edit().putString("last_print_error", (e.message ?: e.javaClass.simpleName).take(450)).apply()
+            }
             try { Thread.sleep(2500) } catch (_: InterruptedException) { Thread.currentThread().interrupt(); break }
         }
     }
@@ -111,15 +135,54 @@ class PrintService : Service() {
         api("/api/print/v1/jobs/$id/stage", JSONObject().put("stage", stage).put("status", status).put("message", message))
     }
 
+    private fun persistJobStates(): Boolean {
+        synchronized(stateLock) {
+            val keys = jobStates.keys().asSequence().toList()
+            if (keys.size > 500) {
+                val remove = keys.sortedBy { jobStates.optJSONObject(it)?.optLong("updatedAt") ?: 0L }.take(keys.size - 500)
+                remove.forEach { jobStates.remove(it) }
+            }
+            return prefs.edit().putString("job_states", jobStates.toString()).commit()
+        }
+    }
+
+    private fun stateOf(key: String): String = synchronized(stateLock) {
+        jobStates.optJSONObject(key)?.optString("state").orEmpty()
+    }
+
+    private fun saveJobState(key: String, state: String, message: String = ""): Boolean {
+        synchronized(stateLock) {
+            jobStates.put(key, JSONObject()
+                .put("state", state)
+                .put("updatedAt", System.currentTimeMillis())
+                .put("message", message.take(450)))
+            return persistJobStates()
+        }
+    }
+
     private fun processJob(job: JSONObject) {
         val id = job.getInt("jobId")
         val key = job.optString("idempotencyKey", "job-$id")
-        if (seen.contains(key)) {
-            report(id, "uncertain", "uncertain", "المهمة موجودة في سجل الجهاز؛ تم منع التكرار")
+        when (stateOf(key)) {
+            "submitted" -> {
+                report(id, "submitted_to_spooler", "ok", "المهمة سبق إرسالها للطابعة؛ تم منع إعادة الإرسال")
+                return
+            }
+            "printing", "uncertain" -> {
+                saveJobState(key, "uncertain", "نتيجة المحاولة السابقة غير مؤكدة؛ تحقق من الورق قبل إعادة الطباعة")
+                report(id, "uncertain", "uncertain", "تم منع التكرار. تحقق من الطابعة قبل إعادة المحاولة يدويًا.")
+                return
+            }
+        }
+
+        // Persist before any printer bytes can be sent.
+        if (!saveJobState(key, "printing", "بدأت محاولة إرسال الإيصال")) {
+            report(id, "uncertain", "uncertain", "تعذر حفظ حالة المهمة على الجهاز؛ تم إيقاف الطباعة لتجنب التكرار")
             return
         }
-        report(id, "agent_accepted", "ok", "استلم تطبيق Matamly المهمة")
+
         try {
+            report(id, "agent_accepted", "ok", "استلم تطبيق Matamly المهمة")
             val receipt = job.getJSONObject("document").getString("receiptText")
             val printer = job.optJSONObject("printer") ?: JSONObject()
             val transport = printer.optString("connectionType", prefs.getString("printer_connection", "usb"))
@@ -130,11 +193,20 @@ class PrintService : Service() {
                 "bluetooth" -> printBluetooth(receipt, address)
                 else -> throw IllegalStateException("طريقة الطباعة غير مدعومة في هذا الإصدار: $transport")
             }
-            seen.add(key)
-            prefs.edit().putString("seen_jobs", seen.toList().takeLast(500).joinToString("|")).apply()
+            if (!saveJobState(key, "submitted", "تم إرسال البيانات إلى وسيط الطباعة")) {
+                report(id, "uncertain", "uncertain", "تم الإرسال لكن تعذر حفظ تأكيد الجهاز؛ تحقق من الورق")
+                return
+            }
             report(id, "submitted_to_spooler", "ok", "تم إرسال بيانات ESC/POS إلى الطابعة. لا يتوفر تأكيد خروج الورق.")
         } catch (e: Exception) {
-            report(id, "failed", "failed", (e.message ?: "Print failed").take(450))
+            val message = (e.message ?: "Print result is uncertain").take(450)
+            saveJobState(key, "uncertain", message)
+            try {
+                report(id, "uncertain", "uncertain", "نتيجة الإرسال غير مؤكدة: $message. تحقق من الورق قبل إعادة الطباعة.")
+            } catch (reportError: Exception) {
+                Log.e("MatamlyPrint", "Could not report uncertain print job $id", reportError)
+                throw reportError
+            }
         }
     }
 
