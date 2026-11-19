@@ -175,7 +175,8 @@ class MainActivity : Activity() {
             if (Build.VERSION.SDK_INT >= 33) registerReceiver(usbPermissionReceiver, filter, Context.RECEIVER_NOT_EXPORTED) else registerReceiver(usbPermissionReceiver, filter)
             usbReceiverRegistered = true
         }
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
+        val mutabilityFlag = if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or mutabilityFlag
         val pending = PendingIntent.getBroadcast(this, device.deviceId, Intent(ACTION_USB_PERMISSION).setPackage(packageName), flags)
         manager.requestPermission(device, pending)
         prefs.edit().putInt("usb_vendor_id", device.vendorId).putInt("usb_product_id", device.productId).apply()
