@@ -338,3 +338,27 @@ button,a,.product-card,.cashier-order,.admin-sidebar{transition:background-color
 .site-shell .hero-copy .hero-note{display:none}
 .site-shell .hero-copy .primary-btn{background:#19813e;border-radius:12px;padding:10px 18px}
 @media(max-width:700px){.site-shell .hero-copy{right:22px;width:62%;top:50%}.site-shell .hero-copy h1{font-size:22px}.site-shell .hero-copy>p{font-size:11px;line-height:1.5}.site-shell .hero-copy .eyebrow{font-size:10px}}
+
+/* Home page hierarchy and five-item mobile navigation from the reference */
+.site-shell main{display:flex;flex-direction:column}
+.site-shell main>.hero{order:0}
+.site-shell main>#menu{order:1}
+.site-shell main>.featured-section{order:2}
+.site-shell main>.offer-banner{order:3}
+.site-shell main>.contact-panel{order:4}
+.site-shell:not(.category-page) #menu>.product-grid{display:none!important}
+.site-shell #menu>.section-heading h2{color:#174f2c}
+.customer-bottom-nav{display:none}
+@media(max-width:700px){
+ .customer-bottom-nav{position:fixed;z-index:100;left:9px;right:9px;bottom:8px;height:64px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:center;gap:2px;padding:5px 6px calc(5px + env(safe-area-inset-bottom));border:1px solid #e0e9e1;border-radius:18px;background:rgba(255,255,255,.97);box-shadow:0 7px 26px rgba(18,58,31,.18);backdrop-filter:blur(14px)}
+ .customer-bottom-nav button{position:relative;min-width:0;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;border-radius:12px;background:transparent;color:#536258;padding:3px 1px}
+ .customer-bottom-nav button>span{font-size:21px;line-height:1.1;font-weight:700}
+ .customer-bottom-nav button>small{font-size:10px;font-weight:700;white-space:nowrap}
+ .customer-bottom-nav button.bottom-cart{color:#176b3a}
+ .customer-bottom-nav button.bottom-cart b{position:absolute;top:0;right:calc(50% - 22px);min-width:15px;height:15px;padding:0 4px;border-radius:20px;background:#e3342f;color:#fff;font-size:9px;line-height:15px}
+ .site-shell .topbar nav{display:none!important}
+ .site-shell .topbar .account-trigger,.site-shell .topbar .cart-trigger{display:none!important}
+ .site-shell .site-footer{padding-bottom:82px}
+ .site-shell main>.featured-section{padding-top:10px}
+ .site-shell #menu>.section-heading{margin-bottom:12px}
+}
