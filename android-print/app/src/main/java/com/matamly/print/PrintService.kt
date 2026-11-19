@@ -157,7 +157,6 @@ class PrintService : Service() {
         val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         val socket = device.createRfcommSocketToServiceRecord(uuid)
         try {
-            adapter.cancelDiscovery()
             socket.connect()
             socket.outputStream.use { it.write(escPosReceipt(text)); it.flush() }
         } finally { try { socket.close() } catch (_: Exception) { } }
