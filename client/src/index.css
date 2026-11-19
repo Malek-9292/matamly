@@ -602,3 +602,24 @@ button,a,.product-card,.cashier-order,.admin-sidebar{transition:background-color
   .site-shell>.topbar .brand-service-switch button.active{background:#168b32!important;color:#fff!important}
   .site-shell>.service-strip{display:none!important}
 }
+
+/* Fatoosh homepage hero refinements */
+@media(max-width:700px){
+  .site-shell>.topbar .brand-logo,
+  .site-shell>.topbar .brand-mark{display:none!important}
+  .site-shell>.topbar .brand{gap:0!important}
+  .site-shell main>.hero{display:block!important;position:relative!important;max-width:none!important;margin:0!important;padding:0 18px!important;min-height:0!important}
+  .site-shell main>.hero .hero-art{position:relative!important;width:100%!important;margin:0!important}
+  .site-shell main>.hero .hero-art>img{display:block!important;width:100%!important;max-width:none!important;object-fit:cover!important;border-radius:20px!important;height:330px!important}
+  .site-shell main>.hero .hero-image-shade{position:absolute!important;inset:0!important;z-index:1!important;border-radius:20px!important;background:linear-gradient(90deg,rgba(0,0,0,.04),rgba(0,0,0,.68))!important;pointer-events:none}
+  .site-shell main>.hero .hero-copy{position:absolute!important;z-index:2!important;right:34px!important;left:30px!important;bottom:24px!important;width:auto!important;max-width:calc(100% - 64px)!important;text-align:right!important;color:#fff!important;display:flex!important;flex-direction:column!important;align-items:flex-end!important;gap:8px!important}
+  .site-shell main>.hero .hero-copy .eyebrow,
+  .site-shell main>.hero .hero-note{display:none!important}
+  .site-shell main>.hero .hero-copy h1{font-size:clamp(25px,7vw,38px)!important;line-height:1.35!important;color:inherit!important;margin:0!important;text-align:right!important}
+  .site-shell main>.hero .hero-copy>p{color:inherit!important;text-align:right!important;margin:0!important;line-height:1.6!important;font-size:14px!important}
+  .site-shell main>.hero .hero-order-btn{align-self:flex-end!important;margin:8px 0 0 auto!important;white-space:nowrap!important;border-radius:14px!important}
+  .site-shell main>.hero .art-stamp,
+  .site-shell main>.hero .art-caption{display:none!important}
+  .site-shell main>.menu-section#menu{margin-top:0!important;padding-top:18px!important}
+  .site-shell main>.hero+.menu-section#menu .section-heading{margin-top:0!important}
+}
