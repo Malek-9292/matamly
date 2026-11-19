@@ -648,7 +648,7 @@ export async function claimUniversalPrintJob(deviceId: string) {
     const now = new Date();
     await conn.query("UPDATE print_jobs SET status = 'failed', lastStage = 'uncertain', lastError = 'انتهت مهلة الجهاز؛ يلزم التحقق قبل إعادة الطباعة', leaseUntil = NULL, updatedAt = ? WHERE status = 'printing' AND leaseUntil IS NOT NULL AND leaseUntil < ?", [now, now]);
     const [rows] = await conn.query<RowDataPacket[]>(
-      "SELECT j.id, j.orderId, j.attempts, j.idempotencyKey, j.createdAt, p.id AS printerId, p.connectionType FROM print_jobs j JOIN print_printers p ON p.deviceId = ? AND p.enabled = 1 AND p.isDefault = 1 JOIN print_devices d ON d.id = p.deviceId AND d.status <> 'revoked' WHERE j.status = 'pending' AND j.attempts < 3 AND j.updatedAt <= NOW() AND (j.deviceId IS NULL OR j.deviceId = ?) ORDER BY j.id LIMIT 1 FOR UPDATE",
+      "SELECT j.id, j.orderId, j.attempts, j.idempotencyKey, j.createdAt, p.id AS printerId, p.connectionType, p.address AS printerAddress FROM print_jobs j JOIN print_printers p ON p.deviceId = ? AND p.enabled = 1 AND p.isDefault = 1 JOIN print_devices d ON d.id = p.deviceId AND d.status <> 'revoked' WHERE j.status = 'pending' AND j.attempts < 3 AND j.updatedAt <= NOW() AND (j.deviceId IS NULL OR j.deviceId = ?) ORDER BY j.id LIMIT 1 FOR UPDATE",
       [deviceId, deviceId],
     );
     if (!rows.length) { await conn.commit(); return null; }
@@ -668,7 +668,7 @@ export async function claimUniversalPrintJob(deviceId: string) {
       protocolVersion: 1, jobId: Number(row.id), idempotencyKey: String(row.idempotencyKey || ("job-" + row.id)),
       createdAt: new Date(row.createdAt).toISOString(),
       document: { encoding: "utf-8", contentType: "text/plain", receiptText: buildReceipt(order, settings.matamly_banner_name || settings.matamly_name || "فتوش الخالدية") },
-      printer: { printerId: String(row.printerId), connectionType: String(row.connectionType), commandSet: String(row.connectionType) === "usb" ? "escpos" : "os-spool" },
+      printer: { printerId: String(row.printerId), connectionType: String(row.connectionType), address: String(row.printerAddress || ""), commandSet: ["usb", "network", "bluetooth"].includes(String(row.connectionType)) ? "escpos" : "os-spool" },
       attempts,
     };
   } catch (error) { await conn.rollback(); throw error; }
