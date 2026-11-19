@@ -46,6 +46,7 @@ The exact route implementation is introduced incrementally. Until an endpoint ex
   "printer": {
     "printerId": "uuid",
     "connectionType": "usb",
+    "address": "",
     "commandSet": "escpos"
   }
 }
@@ -65,7 +66,7 @@ The exact route implementation is introduced incrementally. Until an endpoint ex
 ## Platform adapters
 
 Adapters implement the same job and acknowledgement contract:
-- Android: USB Host API + ESC/POS; Epson TM-T20II is the first target.
+- Android: USB Host, LAN/Wi-Fi TCP (typically port 9100), and Bluetooth Classic SPP with ESC/POS. Internal built-in printers on OEM Android POS devices require their manufacturer SDK and a tested adapter.
 - Windows: Windows spooler / installed driver or supported raw USB adapter.
 - macOS/Linux: CUPS/IPP or a supported ESC/POS transport.
 
