@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
+import { lookup } from "node:dns/promises";
+import { createConnection } from "node:net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { publicPlatformScript } from "./publicConfig";
@@ -10,6 +12,43 @@ import { serveStatic, setupVite } from "./vite";
 import { initRestaurant, registerRestaurantRoutes } from "../restaurant-routes";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function checkDatabaseTcpReachability() {
+  const rawUrl = process.env.DATABASE_URL;
+  if (!rawUrl) {
+    console.error("[DB network check] DATABASE_URL is missing");
+    return;
+  }
+
+  let host: string;
+  let port: number;
+  try {
+    const url = new URL(rawUrl);
+    host = url.hostname;
+    port = Number(url.port || "3306");
+  } catch {
+    console.error("[DB network check] DATABASE_URL is not a valid URL");
+    return;
+  }
+
+  try {
+    const resolved = await lookup(host);
+    console.log(`[DB network check] DNS resolved ${host} to ${resolved.address}; testing TCP port ${port}`);
+    await new Promise<void>((resolve, reject) => {
+      const socket = createConnection({ host: resolved.address, port });
+      socket.setTimeout(8000);
+      socket.once("connect", () => {
+        console.log(`[DB network check] TCP connection to ${host}:${port} succeeded`);
+        socket.end();
+        resolve();
+      });
+      socket.once("timeout", () => socket.destroy(new Error("TCP connection timed out after 8 seconds")));
+      socket.once("error", reject);
+    });
+  } catch (error) {
+    console.error("[DB network check] DNS/TCP check failed:", error instanceof Error ? error.message : error);
+  }
+}
 
 async function startServer() {
   const app = express();
