@@ -28,7 +28,7 @@ export type PreparedOrder = {
   minimumOrder: number;
   minimumMet: boolean;
   total: number;
-  items: { productId: number | string; name: string; qty: number; price: number; choices: string[] }[];
+  items: { productId: number | string; name: string; category?: string; description?: string; qty: number; price: number; choices: string[] }[];
 };
 
 const requiredAddressFields = ["block", "street", "house"] as const;
@@ -60,6 +60,8 @@ export function prepareOrder(
   const items = normalized.items.map((item) => ({
     productId: item.productId as number | string,
     name: item.name,
+    category: item.category,
+    description: item.description,
     qty: item.qty,
     price: money(item.price),
     choices: item.choices,
