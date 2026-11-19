@@ -5,7 +5,7 @@ on:
     inputs:
       server_url:
         description: "HTTPS Matamly server URL used by this prototype build"
-        required: true
+        required: false
         type: string
   push:
     branches: [feature/unified-android-cashier]
@@ -20,23 +20,20 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Validate server URL
-        env:
-          SERVER_URL: ${{ github.event.inputs.server_url }}
-        run: |
-          if [ -z "$SERVER_URL" ]; then
-            echo "For push builds, set the server URL as a repository variable named MATAMLY_SERVER_URL and dispatch this workflow manually with the URL."
-            exit 1
-          fi
-          case "$SERVER_URL" in
-            https://*) ;;
-            *) echo "The server URL must use HTTPS"; exit 1 ;;
-          esac
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.18.0 --activate
+
+      - name: Build existing Matamly web client
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -47,6 +44,19 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Validate server URL
+        env:
+          SERVER_URL: ${{ github.event.inputs.server_url || vars.MATAMLY_SERVER_URL }}
+        run: |
+          if [ -z "$SERVER_URL" ]; then
+            echo "Set repository variable MATAMLY_SERVER_URL or provide server_url when dispatching this workflow."
+            exit 1
+          fi
+          case "$SERVER_URL" in
+            https://*) ;;
+            *) echo "The server URL must use HTTPS"; exit 1 ;;
+          esac
+
       - name: Install customer app dependencies
         working-directory: customer-app
         run: npm install
@@ -55,9 +65,7 @@ jobs:
         working-directory: customer-app
         env:
           MATAMLY_SERVER_URL: ${{ github.event.inputs.server_url || vars.MATAMLY_SERVER_URL }}
-        run: |
-          test -n "$MATAMLY_SERVER_URL"
-          npx cap add android
+        run: npx cap add android
 
       - name: Sync native project
         working-directory: customer-app
