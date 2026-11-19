@@ -24,7 +24,7 @@ This is the Android companion app for the existing Matamly restaurant project. I
 3. For network printers, enter the printer's IP address and port (usually `192.168.1.50:9100`). For Bluetooth, enter/select the paired device MAC address. For USB, leave the address empty.
 4. Install the APK on the cashier Android device.
 5. Enter the Matamly HTTPS base URL and the one-time device token shown by the admin pairing screen.
-6. Select the same printer transport configured in Admin. For USB, choose the device and approve Android's USB permission. For Bluetooth, pair it in Android settings and grant Nearby devices permission when requested.
+6. Select the same printer transport configured in Admin. Choose the matching paper width (58mm or 80mm). For USB, choose the device and approve Android's USB permission. For Bluetooth, pair it in Android settings and grant Nearby devices permission when requested.
 7. Tap **حفظ وتشغيل الطباعة التلقائية**, then **فتح الكاشير** and sign in with the cashier account.
 
 The WebView shares the Android app's cookie store, so the normal cashier login session is retained by the existing site. The print service makes outbound HTTPS requests only; the server never needs to connect inbound to the Android device.
