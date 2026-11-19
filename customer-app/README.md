@@ -31,3 +31,17 @@ This package defines the native Android/iOS shell for the customer ordering expe
 - No server URL, customer credentials, printer tokens, admin routes, or server secrets are committed.
 - Before store submission, implement and verify native navigation, safe areas, external-link and payment-return handling, customer session persistence, privacy disclosures, push notifications, and real-device checkout.
 - A signed APK/IPA and store-ready release do not exist yet.
+
+
+## Prototype Android build
+
+A manual GitHub Actions workflow is available at `.github/workflows/customer-app-android.yml`.
+
+1. Open the repository's Actions tab.
+2. Select **Matamly Customer Android App** and choose **Run workflow** on `feature/unified-android-cashier`.
+3. Supply the exact deployed Matamly HTTPS origin in `server_url`.
+4. After a successful run, download the `matamly-customer-android-debug` artifact.
+
+The workflow first builds the existing web client, then generates the Capacitor Android project, syncs it, builds a debug APK, and uploads the APK artifact.
+
+This is an installable prototype wrapper around the existing hosted customer experience. It is not yet a store-ready native customer app. The deployed URL must be explicitly confirmed; the workflow deliberately does not guess or hard-code a production or preview host.
