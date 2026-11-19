@@ -35,6 +35,7 @@ class MainActivity : Activity() {
     private lateinit var token: EditText
     private lateinit var printerAddress: EditText
     private lateinit var transport: Spinner
+    private lateinit var paperWidth: Spinner
     private lateinit var status: TextView
     private var cashierWebView: WebView? = null
     private var usbReceiverRegistered = false
@@ -68,6 +69,12 @@ class MainActivity : Activity() {
             setSelection(when (prefs.getString("printer_connection", "usb")) { "network" -> 1; "bluetooth" -> 2; else -> 0 })
         }
         root.addView(transport)
+        root.addView(label("عرض ورق الطابعة"))
+        paperWidth = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, arrayOf("80 مم", "58 مم"))
+            setSelection(if (prefs.getInt("printer_width", 576) == 384) 1 else 0)
+        }
+        root.addView(paperWidth)
         root.addView(label("عنوان الطابعة للشبكة أو Bluetooth"))
         printerAddress = EditText(this).apply { hint = "شبكة: 192.168.1.50:9100 | Bluetooth: MAC"; setSingleLine(true); setText(prefs.getString("printer_address", "")) }
         root.addView(printerAddress)
@@ -92,7 +99,7 @@ class MainActivity : Activity() {
         if (server == null) { status.text = "أدخل رابط HTTPS صحيحًا للموقع."; return }
         if (secret.length < 40) { status.text = "رمز الجهاز غير صحيح. أنشئ رمزًا من إدارة الطباعة."; return }
         if (connection != "usb" && address.isBlank()) { status.text = "أدخل عنوان الطابعة أولاً."; return }
-        prefs.edit().putString("base", server).putString("token", secret).putString("printer_connection", connection).putString("printer_address", address).apply()
+        prefs.edit().putString("base", server).putString("token", secret).putString("printer_connection", connection).putString("printer_address", address).putInt("printer_width", if (paperWidth.selectedItemPosition == 1) 384 else 576).apply()
         if (connection == "bluetooth" && Build.VERSION.SDK_INT >= 31 && checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_CONNECT), REQUEST_BLUETOOTH)
             return
