@@ -13,10 +13,6 @@ import android.hardware.usb.UsbManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.webkit.CookieManager
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -37,7 +33,6 @@ class MainActivity : Activity() {
     private lateinit var transport: Spinner
     private lateinit var paperWidth: Spinner
     private lateinit var status: TextView
-    private var cashierWebView: WebView? = null
     private var usbReceiverRegistered = false
 
     private val usbPermissionReceiver = object : BroadcastReceiver() {
@@ -119,29 +114,8 @@ class MainActivity : Activity() {
         val server = normalizeBase(base.text.toString()) ?: normalizeBase(prefs.getString("base", "") ?: "")
         if (server == null) { status.text = "أدخل رابط الموقع أولاً."; return }
         prefs.edit().putString("base", server).apply()
-        val web = WebView(this)
-        cashierWebView = web
-        web.settings.javaScriptEnabled = true
-        web.settings.domStorageEnabled = true
-        web.settings.databaseEnabled = true
-        web.settings.allowFileAccess = false
-        web.settings.allowContentAccess = false
-        web.settings.javaScriptCanOpenWindowsAutomatically = false
-        web.settings.setSupportMultipleWindows(false)
-        web.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                val uri = Uri.parse(url)
-                val host = Uri.parse(server).host
-                if (uri.scheme == "https" && uri.host == host) return false
-                if (uri.scheme == "https") startActivity(Intent(Intent.ACTION_VIEW, uri))
-                return true
-            }
-        }
-        web.webChromeClient = WebChromeClient()
-        CookieManager.getInstance().setAcceptCookie(true)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(web, false)
-        setContentView(web)
-        web.loadUrl(server + "/cashier")
+        // Keep cashier UI in the browser/PWA. This APK is only the local print bridge.
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$server/cashier")))
     }
 
     private fun chooseUsbPrinter() {
@@ -211,12 +185,6 @@ class MainActivity : Activity() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) chooseBluetoothPrinter()
             else status.text = "إذن Bluetooth مطلوب لهذا النوع من الطابعات."
         }
-    }
-
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
-        val web = cashierWebView
-        if (web != null && web.canGoBack()) web.goBack() else if (web != null) { web.destroy(); cashierWebView = null; showSetup() } else super.onBackPressed()
     }
 
     override fun onDestroy() {
