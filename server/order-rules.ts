@@ -31,7 +31,8 @@ export type PreparedOrder = {
   items: { productId: number | string; name: string; qty: number; price: number; choices: string[] }[];
 };
 
-const addressFields = ["block", "street", "avenue", "floor", "apartment", "house"] as const;
+const requiredAddressFields = ["block", "street", "house"] as const;
+const addressFields = ["block", "street", "avenue", "house", "floor", "apartment"] as const;
 
 export function prepareOrder(
   body: Record<string, unknown>,
@@ -91,7 +92,7 @@ export function prepareOrder(
 
   const parts = (body.addressParts && typeof body.addressParts === "object" ? body.addressParts : {}) as Record<string, unknown>;
   const addressValues = Object.fromEntries(addressFields.map((field) => [field, cleanText(parts[field], 80)])) as Record<(typeof addressFields)[number], string>;
-  if (addressFields.some((field) => addressValues[field].length < 1)) {
+  if (requiredAddressFields.some((field) => addressValues[field].length < 1)) {
     return { ok: false, error: "يرجى إدخال عنوان التوصيل كاملاً" };
   }
   const areaId = Number(body.areaId);
@@ -105,11 +106,11 @@ export function prepareOrder(
     selected.area.name,
     `القطعة ${addressValues.block}`,
     `الشارع ${addressValues.street}`,
-    `الجادة ${addressValues.avenue}`,
-    `الدور ${addressValues.floor}`,
-    `الشقة ${addressValues.apartment}`,
+    addressValues.avenue ? `الجادة ${addressValues.avenue}` : "",
     `المنزل ${addressValues.house}`,
-  ].join(" - ");
+    addressValues.floor ? `الدور ${addressValues.floor}` : "",
+    addressValues.apartment ? `الشقة ${addressValues.apartment}` : "",
+  ].filter(Boolean).join(" - ");
   const deliveryFee = selected.area.deliveryFee;
   return {
     ok: true,
