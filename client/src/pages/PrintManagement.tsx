@@ -97,8 +97,8 @@ export default function PrintManagement() {
       </div>
       <button style={{...button,marginTop:12}} disabled={busy||name.trim().length<2} onClick={()=>void pair()}><ShieldCheck size={16} style={{verticalAlign:"middle",marginInlineEnd:6}}/>إنشاء جهاز ورمز ربط</button>
     </div>
-    {pairedId&&<div style={panel}>
-      <h3 style={{marginTop:0}}>إضافة الطابعة للجهاز الجديد</h3>
+    {(pairedId||printerTargetId)&&<div style={panel}>
+      <h3 style={{marginTop:0}}>إضافة طابعة للجهاز: {devices.find(device=>device.id===(printerTargetId||pairedId))?.name||"الجهاز الجديد"}</h3>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10}}>
         <label>اسم الطابعة<input style={field} value={printerName} onChange={e=>setPrinterName(e.target.value)}/></label>
         <label>الموديل<input style={field} value={model} onChange={e=>setModel(e.target.value)}/></label>
