@@ -411,7 +411,7 @@ export type PublicOrder = {
   createdAt: string;
   updatedAt: string;
   customer: { name: string; phone: string };
-  items: { name: string; qty: number; price: number; choices: string[] }[];
+  items: { name: string; category?: string; qty: number; price: number; choices: string[] }[];
   foodTotal: number;
   deliveryFee: number;
   minimumOrder: number;
@@ -434,7 +434,10 @@ function mapOrder(row: RowDataPacket, items: RowDataPacket[], job?: RowDataPacke
     createdAt: new Date(row.createdAt).toISOString(),
     updatedAt: new Date(row.updatedAt).toISOString(),
     customer: { name: String(row.customerName), phone: String(row.customerPhone) },
-    items: items.map((item) => ({ name: String(item.name), qty: Number(item.qty), price: Number(item.price), choices: JSON.parse(String(item.choicesJson || "[]")) })),
+    items: items.map((item) => {
+      const saved = JSON.parse(String(item.choicesJson || "[]"));
+      return { name: String(item.name), category: Array.isArray(saved) ? "" : String(saved?.category || ""), qty: Number(item.qty), price: Number(item.price), choices: Array.isArray(saved) ? saved : Array.isArray(saved?.choices) ? saved.choices : [] };
+    }),
     foodTotal: Number(row.foodTotal),
     deliveryFee: Number(row.deliveryFee),
     minimumOrder: Number(row.minimumOrder),
@@ -503,7 +506,7 @@ export async function createCustomerOrder(body: Record<string, unknown>) {
         [orderNumber, requestId, body.customerAccountId || null, order.customerName, order.customerPhone, order.serviceMode, order.areaId, order.areaName, order.address, order.notes, order.payment, order.foodTotal.toFixed(3), order.deliveryFee.toFixed(3), order.minimumOrder.toFixed(3), order.total.toFixed(3), now, now],
       );
       for (const item of order.items) {
-        await conn.query("INSERT INTO order_items (orderId, productId, name, qty, price, choicesJson) VALUES (?, ?, ?, ?, ?, ?)", [inserted.insertId, String(item.productId), item.name, item.qty, item.price.toFixed(3), JSON.stringify(item.choices)]);
+        await conn.query("INSERT INTO order_items (orderId, productId, name, qty, price, choicesJson) VALUES (?, ?, ?, ?, ?, ?)", [inserted.insertId, String(item.productId), item.name, item.qty, item.price.toFixed(3), JSON.stringify({ choices: item.choices, category: String((item as typeof item & { category?: string }).category || "") })]);
       }
       const [printTargets] = await conn.query<RowDataPacket[]>("SELECT p.deviceId, p.id AS printerId FROM print_printers p JOIN print_devices d ON d.id = p.deviceId WHERE d.status = 'online' AND p.enabled = 1 AND p.isDefault = 1 ORDER BY d.lastSeenAt DESC LIMIT 1");
       const target = printTargets[0];
