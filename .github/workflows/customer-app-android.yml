@@ -7,11 +7,6 @@ on:
         description: "HTTPS Matamly server URL used by this prototype build"
         required: false
         type: string
-  push:
-    branches: [feature/unified-android-cashier]
-    paths:
-      - "customer-app/**"
-      - ".github/workflows/customer-app-android.yml"
 
 jobs:
   build-customer-android:
