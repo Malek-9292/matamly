@@ -1,33 +1,40 @@
-# Matamly Android Print
+# Matamly Android Cashier
 
-This is the native Android USB adapter source project.
+This is the Android companion app for the existing Matamly restaurant project. It opens the existing `/cashier` page inside a native Android WebView and runs the native print worker in the same app. Customer ordering, administration, authentication, and data remain on the existing Matamly HTTPS server; this APK is not an offline replacement for the server.
 
-## Build
+## Android compatibility
 
-Requires JDK 17 and Gradle 8.9:
+- Minimum Android: 6.0 (API 23).
+- Built with Java 17, Kotlin 2.0, Android Gradle Plugin 8.7.
+- Uses Android platform APIs rather than manufacturer-specific UI frameworks.
+- Intended to run on Samsung, Xiaomi, Oppo, Vivo, Huawei, Honor, Lenovo, Sunmi, iMin and generic Android POS devices, subject to the device exposing standard Android WebView, USB Host, Bluetooth or network APIs.
+- Chinese POS devices that expose their built-in printer only through a proprietary SDK need a separate OEM adapter. No generic Android application can silently control every vendor's internal printer without that SDK.
 
-```sh
-cd android-print
-gradle :app:assembleDebug
-```
+## Supported printer transports in this build
 
-GitHub Actions builds a debug APK for pushes to `development` that change this folder. The APK is uploaded as the `matamly-print-android-debug` workflow artifact when the workflow succeeds.
+- USB host + ESC/POS bulk OUT (OTG where required).
+- LAN / Wi-Fi TCP ESC/POS, default port 9100; enter `IP:PORT` in printer setup.
+- Bluetooth Classic SPP ESC/POS; pair the printer in Android settings first, then select its MAC address.
+- The Android system print framework and vendor-specific internal printer SDKs are not silently driven by this ESC/POS worker yet.
 
 ## Setup
 
-1. Register an Android device in Admin → إدارة الطباعة.
-2. Add an enabled USB printer as its default printer (initial target: Epson TM-T20II).
-3. Install the APK on the Android phone/tablet.
-4. Enter the Matamly development HTTPS URL and the one-time device token.
-5. Connect the printer using a supported USB OTG cable and tap **طلب إذن USB للطابعة**. Approve the Android permission prompt.
-6. Tap **حفظ وتشغيل خدمة الطباعة**. The foreground service sends heartbeats and polls the server over HTTPS.
+1. Deploy the current Matamly branch and open Admin → إدارة الطباعة.
+2. Register a device with platform Android and a recognizable name, then add its default printer.
+3. For network printers, enter the printer's IP address and port (usually `192.168.1.50:9100`). For Bluetooth, enter/select the paired device MAC address. For USB, leave the address empty.
+4. Install the APK on the cashier Android device.
+5. Enter the Matamly HTTPS base URL and the one-time device token shown by the admin pairing screen.
+6. Select the same printer transport configured in Admin. For USB, choose the device and approve Android's USB permission. For Bluetooth, pair it in Android settings and grant Nearby devices permission when requested.
+7. Tap **حفظ وتشغيل الطباعة التلقائية**, then **فتح الكاشير** and sign in with the cashier account.
 
-The service waits without claiming jobs when no USB device with a bulk OUT endpoint and granted USB permission is available. It persists completed job IDs to avoid duplicate printing after process restarts. It restarts after device boot if it was configured, but Android may require the user to reopen the app and grant USB permission again after reboot or reconnection.
+The WebView shares the Android app's cookie store, so the normal cashier login session is retained by the existing site. The print service makes outbound HTTPS requests only; the server never needs to connect inbound to the Android device.
 
-## Important verification boundary
+## Background operation
 
-The adapter renders the Arabic receipt to a monochrome bitmap using Android's text layout engine, then sends ESC/POS raster-image commands over USB. This avoids relying on a printer's Arabic code-page shaping for the first version.
+The app uses a foreground connected-device service and requests restart after device boot. Android vendors may apply extra battery/background restrictions. On Sunmi, iMin and other POS builds, allow Matamly to run automatically / in the background and disable battery optimization for the app where the device settings provide those controls. After USB reconnection or a reboot, some Android versions require the cashier to reopen the app and grant USB permission again.
 
-The server records `submitted_to_spooler` after USB bulk transfer succeeds. This is **not proof that paper physically exited the printer**. The current Android adapter does not yet read Epson real-time status or paper sensors. A real Epson TM-T20II USB hardware test is still required before production use.
+## Delivery and verification boundary
 
-The APK is a debug build until signing and release distribution are configured. Do not install an APK artifact until the corresponding GitHub Actions build succeeds.
+The app reports `submitted_to_spooler` after the bytes are accepted by the USB, TCP or Bluetooth output stream. This is not proof that paper physically exited the printer. A printer that exposes reliable status or paper sensors can support a stronger acknowledgement in a future model-specific adapter.
+
+A successful GitHub Actions build verifies compilation only. Before production use, test the actual printer and Android device combination, including Arabic receipt layout, paper width, disconnect/reconnect, duplicate prevention, and background restart. Proprietary built-in printers require their manufacturer's SDK and a dedicated tested adapter.
