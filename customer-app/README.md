@@ -45,3 +45,15 @@ A manual GitHub Actions workflow is available at `.github/workflows/customer-app
 The workflow first builds the existing web client, then generates the Capacitor Android project, syncs it, builds a debug APK, and uploads the APK artifact.
 
 This is an installable prototype wrapper around the existing hosted customer experience. It is not yet a store-ready native customer app. The deployed URL must be explicitly confirmed; the workflow deliberately does not guess or hard-code a production or preview host.
+
+
+## Prototype iOS build
+
+A manual simulator build workflow is available at `.github/workflows/customer-app-ios.yml`.
+
+1. Open the repository's Actions tab.
+2. Select **Matamly Customer iOS App** and choose **Run workflow** on `feature/unified-android-cashier`.
+3. Supply the exact deployed Matamly HTTPS origin in `server_url`.
+4. After a successful run, download the `matamly-customer-ios-simulator-debug` artifact.
+
+This produces an unsigned iOS Simulator app for technical validation. It is not an installable signed iPhone IPA. Signing, provisioning profiles, physical-device tests, and App Store preparation remain later steps and require the appropriate Apple developer setup.
