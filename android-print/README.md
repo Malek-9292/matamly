@@ -1,6 +1,6 @@
-# Matamly Android Cashier
+# Matamly Print Agent for Android
 
-This is the Android companion app for the existing Matamly restaurant project. It opens the existing `/cashier` page inside a native Android WebView and runs the native print worker in the same app. Customer ordering, administration, authentication, and data remain on the existing Matamly HTTPS server; this APK is not an offline replacement for the server.
+This is a small Android print companion for the existing Matamly PWA website. Customer ordering, cashier screens, administration, authentication, and data remain in the normal HTTPS website/PWA and open in the device browser. This helper runs the local print worker in the background and sends queued receipts to the configured printer. It is not a separate customer or cashier app and is not an offline replacement for the server.
 
 ## Android compatibility
 
@@ -25,9 +25,9 @@ This is the Android companion app for the existing Matamly restaurant project. I
 4. Install the APK on the cashier Android device.
 5. Enter the Matamly HTTPS base URL and the one-time device token shown by the admin pairing screen.
 6. Select the same printer transport configured in Admin. Choose the matching paper width (58mm or 80mm). For USB, choose the device and approve Android's USB permission. For Bluetooth, pair it in Android settings and grant Nearby devices permission when requested.
-7. Tap **حفظ وتشغيل الطباعة التلقائية**, then **فتح الكاشير** and sign in with the cashier account.
+7. Tap **حفظ وتشغيل الطباعة التلقائية**. Then open the Matamly PWA in the browser and sign in to `/cashier` normally. The helper's **فتح الكاشير** button simply opens that website page in the browser.
 
-The WebView shares the Android app's cookie store, so the normal cashier login session is retained by the existing site. The print service makes outbound HTTPS requests only; the server never needs to connect inbound to the Android device.
+The cashier login remains in the normal browser/PWA. The helper print service makes outbound HTTPS requests only; the server never needs to connect inbound to the Android device.
 
 ## Background operation
 
