@@ -36,6 +36,7 @@ class MainActivity : Activity() {
     private lateinit var printerAddress: EditText
     private lateinit var transport: Spinner
     private lateinit var status: TextView
+    private var cashierWebView: WebView? = null
     private var usbReceiverRegistered = false
 
     private val usbPermissionReceiver = object : BroadcastReceiver() {
@@ -59,7 +60,7 @@ class MainActivity : Activity() {
         base = EditText(this).apply { hint = "https://your-matamly-host"; setSingleLine(true); setText(prefs.getString("base", "")) }
         root.addView(base)
         root.addView(label("رمز جهاز الطباعة من لوحة الإدارة"))
-        token = EditText(this).apply { hint = "Device token"; setSingleLine(true); setText(prefs.getString("token", "")) }
+        token = EditText(this).apply { hint = "Device token"; setSingleLine(true); inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD; setText(prefs.getString("token", "")) }
         root.addView(token)
         root.addView(label("طريقة توصيل الطابعة"))
         transport = Spinner(this).apply {
@@ -112,6 +113,7 @@ class MainActivity : Activity() {
         if (server == null) { status.text = "أدخل رابط الموقع أولاً."; return }
         prefs.edit().putString("base", server).apply()
         val web = WebView(this)
+        cashierWebView = web
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.settings.databaseEnabled = true
@@ -201,6 +203,12 @@ class MainActivity : Activity() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) chooseBluetoothPrinter()
             else status.text = "إذن Bluetooth مطلوب لهذا النوع من الطابعات."
         }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        val web = cashierWebView
+        if (web != null && web.canGoBack()) web.goBack() else if (web != null) { web.destroy(); cashierWebView = null; showSetup() } else super.onBackPressed()
     }
 
     override fun onDestroy() {
