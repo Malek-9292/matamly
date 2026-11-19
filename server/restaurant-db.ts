@@ -690,8 +690,10 @@ export async function recordUniversalPrintStage(input: { jobId: number; deviceId
     await conn.query("INSERT INTO print_job_events (jobId, deviceId, stage, status, message, createdAt) VALUES (?, ?, ?, ?, ?, ?)", [
       input.jobId, input.deviceId, input.stage, input.status, String(input.message || "").slice(0, 500), now,
     ]);
-    if (input.stage === "paper_confirmed" && input.status === "ok") {
-      await conn.query("UPDATE print_jobs SET status = 'printed', confirmedAt = ?, leaseUntil = NULL WHERE id = ?", [now, input.jobId]);
+    if (input.status === "ok" && ["submitted_to_spooler", "printer_acknowledged", "paper_confirmed"].includes(input.stage)) {
+      // "printed" means the agent successfully handed the receipt to the printer transport.
+      // confirmedAt is reserved for an actual paper sensor / completion confirmation.
+      await conn.query("UPDATE print_jobs SET status = 'printed', confirmedAt = CASE WHEN ? = 'paper_confirmed' THEN ? ELSE confirmedAt END, leaseUntil = NULL WHERE id = ?", [input.stage, now, input.jobId]);
     } else if (input.stage === "failed") {
       const attempts = Number(jobs[0].attempts);
       const retryAt = new Date(now.getTime() + Math.min(60_000, 5_000 * (2 ** Math.max(0, attempts - 1))));
