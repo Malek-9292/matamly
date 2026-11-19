@@ -100,7 +100,7 @@ export default function PrintManagement() {
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10}}>
         <label>اسم الطابعة<input style={field} value={printerName} onChange={e=>setPrinterName(e.target.value)}/></label>
         <label>الموديل<input style={field} value={model} onChange={e=>setModel(e.target.value)}/></label>
-        <label>طريقة الاتصال<select style={field} value={connectionType} onChange={e=>setConnectionType(e.target.value)}><option value="usb">USB</option><option value="network">LAN / Wi-Fi</option><option value="bluetooth">Bluetooth</option><option value="system">طابعة النظام</option></select></label>{connectionType!=="usb"&&<label>عنوان الطابعة<input style={field} value={printerAddress} onChange={e=>setPrinterAddress(e.target.value)} placeholder={connectionType==="network"?"192.168.1.50:9100":"00:11:22:33:44:55"}/></label>}
+        <label>طريقة الاتصال<select style={field} value={connectionType} onChange={e=>setConnectionType(e.target.value)}><option value="usb">USB</option><option value="network">LAN / Wi-Fi</option><option value="bluetooth">Bluetooth</option><option value="system">طابعة النظام</option></select></label>{(connectionType==="network"||connectionType==="bluetooth")&&<label>عنوان الطابعة<input style={field} value={printerAddress} onChange={e=>setPrinterAddress(e.target.value)} placeholder={connectionType==="network"?"192.168.1.50:9100":"00:11:22:33:44:55"}/></label>}
       </div>
       <button style={{...button,marginTop:12}} disabled={busy||printerName.trim().length<2} onClick={()=>void addPrinter()}><Printer size={16} style={{verticalAlign:"middle",marginInlineEnd:6}}/>حفظ الطابعة كافتراضية</button>
     </div>}
