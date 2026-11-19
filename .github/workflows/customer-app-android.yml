@@ -1,6 +1,9 @@
 name: Matamly Customer Android App
 
 on:
+  push:
+    branches:
+      - feature/unified-android-cashier
   workflow_dispatch:
     inputs:
       server_url:
@@ -43,7 +46,7 @@ jobs:
 
       - name: Validate server URL
         env:
-          SERVER_URL: ${{ github.event.inputs.server_url || vars.MATAMLY_SERVER_URL }}
+          SERVER_URL: ${{ github.event.inputs.server_url || vars.MATAMLY_SERVER_URL || 'https://matamly.onrender.com' }}
         run: |
           if [ -z "$SERVER_URL" ]; then
             echo "Set repository variable MATAMLY_SERVER_URL or provide server_url when dispatching this workflow."
@@ -61,13 +64,13 @@ jobs:
       - name: Generate Android project
         working-directory: customer-app
         env:
-          MATAMLY_SERVER_URL: ${{ github.event.inputs.server_url || vars.MATAMLY_SERVER_URL }}
+          MATAMLY_SERVER_URL: ${{ github.event.inputs.server_url || vars.MATAMLY_SERVER_URL || 'https://matamly.onrender.com' }}
         run: npx cap add android
 
       - name: Sync native project
         working-directory: customer-app
         env:
-          MATAMLY_SERVER_URL: ${{ github.event.inputs.server_url || vars.MATAMLY_SERVER_URL }}
+          MATAMLY_SERVER_URL: ${{ github.event.inputs.server_url || vars.MATAMLY_SERVER_URL || 'https://matamly.onrender.com' }}
         run: npx cap sync android
 
       - name: Build debug APK
