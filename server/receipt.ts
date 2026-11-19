@@ -10,7 +10,7 @@ export type ReceiptOrder = {
   foodTotal: number;
   deliveryFee: number;
   total: number;
-  items: { name: string; qty: number; price: number; choices?: string[] }[];
+  items: { name: string; category?: string; qty: number; price: number; choices?: string[] }[];
 };
 
 /** One complete, plain-text receipt. Keep customer and kitchen details together. */
@@ -22,9 +22,8 @@ export function buildReceipt(order: ReceiptOrder, restaurantName: string) {
   const lines = [
     restaurantName || "فتوش الخالدية",
     "================================",
-    `رقم الطلب: ${order.orderNumber}`,
-    `التاريخ والوقت: ${stamp}`,
-    order.serviceMode === "delivery" ? "طريقة الطلب: توصيل" : "طريقة الطلب: استلام من المطعم",
+    `طلب رقم: ${order.orderNumber}    ${stamp}`,
+    order.serviceMode === "delivery" ? "**** طلب توصيل ****" : "**** استلام من المطعم ****",
     "--------------------------------",
     "بيانات العميل",
     `الاسم: ${order.customer.name}`,
@@ -34,11 +33,13 @@ export function buildReceipt(order: ReceiptOrder, restaurantName: string) {
     if (order.zone) lines.push(`المنطقة: ${order.zone}`);
     if (order.address) lines.push(`العنوان: ${order.address}`);
   }
-  lines.push("--------------------------------", "تفاصيل الطلب");
+  lines.push("--------------------------------", "تفاصيل الطلب للمطبخ");
   for (const item of order.items) {
-    lines.push(`${item.name}`, `الكمية: ${item.qty}    السعر: ${(item.price * item.qty).toFixed(3)} د.ك`);
-    if (item.choices?.length) lines.push(`الاختيارات: ${item.choices.join("، ")}`);
-    lines.push("--------------------------------");
+    lines.push("********************************", `الصنف: ${item.name}`);
+    if (item.category) lines.push(`القسم: ${item.category}`);
+    lines.push(`الكمية: ${item.qty}`, `سعر الوحدة: ${item.price.toFixed(3)} د.ك`);
+    if (item.choices?.length) lines.push(`التعديلات: ${item.choices.join("، ")}`);
+    lines.push("********************************");
   }
   lines.push(
     `قيمة الطعام: ${order.foodTotal.toFixed(3)} د.ك`,
