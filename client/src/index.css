@@ -592,3 +592,13 @@ button,a,.product-card,.cashier-order,.admin-sidebar{transition:background-color
  .site-shell>.topbar .brand-service-switch{display:flex!important;gap:7px!important;margin-top:8px!important}
  .site-shell>.topbar .brand-service-switch button{font-size:12px!important;padding:8px 12px!important}
 }
+
+/* Delivery and pickup choices directly below the restaurant name */
+@media(max-width:700px){
+  .site-shell>.topbar{height:160px!important;min-height:160px!important;padding:8px 12px!important}
+  .site-shell>.topbar .brand{gap:3px!important}
+  .site-shell>.topbar .brand-service-switch{display:flex!important;justify-content:center!important;width:100%!important;margin-top:5px!important}
+  .site-shell>.topbar .brand-service-switch button{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:34px!important;padding:6px 15px!important;border:1px solid #168b32!important;border-radius:11px!important;background:#fff!important;color:#176b31!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}
+  .site-shell>.topbar .brand-service-switch button.active{background:#168b32!important;color:#fff!important}
+  .site-shell>.service-strip{display:none!important}
+}
