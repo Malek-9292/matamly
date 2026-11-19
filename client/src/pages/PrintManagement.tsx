@@ -19,6 +19,7 @@ export default function PrintManagement() {
   const [printerName,setPrinterName]=useState("Epson TM-T20II");
   const [model,setModel]=useState("Epson TM-T20II");
   const [connectionType,setConnectionType]=useState("usb");
+  const [printerAddress,setPrinterAddress]=useState("");
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
   const [error,setError]=useState("");
@@ -50,7 +51,7 @@ export default function PrintManagement() {
     if(!pairedId)return;
     setBusy(true);setError("");setMessage("");
     try{
-      const r=await fetch("/api/admin/print/printers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:pairedId,name:printerName,model,connectionType,isDefault:true})});
+      const r=await fetch("/api/admin/print/printers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:pairedId,name:printerName,model,connectionType,address:printerAddress,isDefault:true})});
       const d=await r.json();if(!r.ok)throw new Error(d.message||"تعذرت إضافة الطابعة");
       setMessage("تمت إضافة الطابعة كافتراضية للجهاز.");await load();
     }catch(e){setError(e instanceof Error?e.message:"تعذرت إضافة الطابعة");}
@@ -75,7 +76,7 @@ export default function PrintManagement() {
 
   return <div style={{maxWidth:1100,margin:"0 auto",padding:"8px 0 30px",color:"#17231c"}}>
     <div style={{...panel,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-      <div><div style={{fontSize:13,color:"#62746a"}}>Matamly Universal Print</div><h2 style={{margin:"4px 0"}}>إدارة أجهزة الطباعة</h2><p style={{margin:0,color:"#62746a"}}>سجّل أجهزة الكاشير والطابعات المرتبطة بها، وتابع حالة الاتصال.</p></div>
+      <div><div style={{fontSize:13,color:"#62746a"}}>Matamly Universal Print</div><h2 style={{margin:"4px 0"}}>إدارة أجهزة الطباعة</h2><p style={{margin:0,color:"#62746a"}}>سجّل تطبيق Matamly على جهاز الكاشير، وحدد USB أو LAN/Wi-Fi أو Bluetooth. للشبكة أدخل IP:9100، ولـ Bluetooth أدخل عنوان MAC.</p></div>
       <button style={button} onClick={()=>void load()}><RefreshCw size={16} style={{verticalAlign:"middle",marginInlineEnd:6}}/>تحديث</button>
     </div>
     {message&&<div role="status" style={{...panel,borderColor:"#b7d7c2",background:"#f4fbf6"}}>{message}</div>}
@@ -99,7 +100,7 @@ export default function PrintManagement() {
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10}}>
         <label>اسم الطابعة<input style={field} value={printerName} onChange={e=>setPrinterName(e.target.value)}/></label>
         <label>الموديل<input style={field} value={model} onChange={e=>setModel(e.target.value)}/></label>
-        <label>طريقة الاتصال<select style={field} value={connectionType} onChange={e=>setConnectionType(e.target.value)}><option value="usb">USB</option><option value="network">LAN / Network</option><option value="bluetooth">Bluetooth</option><option value="system">طابعة النظام</option></select></label>
+        <label>طريقة الاتصال<select style={field} value={connectionType} onChange={e=>setConnectionType(e.target.value)}><option value="usb">USB</option><option value="network">LAN / Wi-Fi</option><option value="bluetooth">Bluetooth</option><option value="system">طابعة النظام</option></select></label>{connectionType!=="usb"&&<label>عنوان الطابعة<input style={field} value={printerAddress} onChange={e=>setPrinterAddress(e.target.value)} placeholder={connectionType==="network"?"192.168.1.50:9100":"00:11:22:33:44:55"}/></label>}
       </div>
       <button style={{...button,marginTop:12}} disabled={busy||printerName.trim().length<2} onClick={()=>void addPrinter()}><Printer size={16} style={{verticalAlign:"middle",marginInlineEnd:6}}/>حفظ الطابعة كافتراضية</button>
     </div>}
