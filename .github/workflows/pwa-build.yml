@@ -3,6 +3,7 @@ name: Matamly PWA Build
 on:
   push:
     branches:
+      - development
       - feature/unified-android-cashier
     paths:
       - "client/**"
