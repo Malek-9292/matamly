@@ -690,7 +690,7 @@ export async function recordUniversalPrintStage(input: { jobId: number; deviceId
     await conn.query("INSERT INTO print_job_events (jobId, deviceId, stage, status, message, createdAt) VALUES (?, ?, ?, ?, ?, ?)", [
       input.jobId, input.deviceId, input.stage, input.status, String(input.message || "").slice(0, 500), now,
     ]);
-    if (input.stage === "submitted_to_spooler" || input.stage === "printer_acknowledged" || input.stage === "paper_confirmed") {
+    if (input.stage === "paper_confirmed" && input.status === "ok") {
       await conn.query("UPDATE print_jobs SET status = 'printed', confirmedAt = ?, leaseUntil = NULL WHERE id = ?", [now, input.jobId]);
     } else if (input.stage === "failed") {
       const attempts = Number(jobs[0].attempts);
