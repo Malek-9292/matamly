@@ -10,7 +10,7 @@ export type ReceiptOrder = {
   foodTotal: number;
   deliveryFee: number;
   total: number;
-  items: { name: string; category?: string; qty: number; price: number; choices?: string[] }[];
+  items: { name: string; category?: string; description?: string; qty: number; price: number; choices?: string[] }[];
 };
 
 /** One complete, plain-text receipt. Keep customer and kitchen details together. */
@@ -37,6 +37,7 @@ export function buildReceipt(order: ReceiptOrder, restaurantName: string) {
   for (const item of order.items) {
     lines.push("********************************", `الصنف: ${item.name}`);
     if (item.category) lines.push(`القسم: ${item.category}`);
+    if (item.description) lines.push(`التفاصيل: ${item.description}`);
     lines.push(`الكمية: ${item.qty}`, `سعر الوحدة: ${item.price.toFixed(3)} د.ك`);
     if (item.choices?.length) lines.push(`التعديلات: ${item.choices.join("، ")}`);
     lines.push("********************************");
