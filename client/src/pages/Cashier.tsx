@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check, ChefHat, Clock3, LockKeyhole, Printer, RefreshCw,
   Search, Volume2, VolumeX, XCircle,
@@ -42,6 +42,7 @@ export default function Cashier() {
   const [printId, setPrintId] = useState<number | null>(null);
   const [sound, setSound] = useState(() => localStorage.getItem("matamly_cashier_sound") !== "0");
   const [error, setError] = useState("");
+  const loadingRef = useRef(false);
 
   const playNewOrder = () => {
     if (!sound) return;
@@ -66,6 +67,8 @@ export default function Cashier() {
   };
 
   const load = useCallback(async (quiet = false) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     if (!quiet) setLoading(true);
     try {
       const response = await fetch("/api/orders", { cache: "no-store" });
@@ -80,7 +83,7 @@ export default function Cashier() {
       setError("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "الخادم غير متاح");
-    } finally { setLoading(false); }
+    } finally { loadingRef.current = false; setLoading(false); }
   }, [sound]);
 
   const login = async (event: React.FormEvent) => {
@@ -160,6 +163,7 @@ export default function Cashier() {
         <div className="order-items">{order.items.map((item, index) => <div className="cashier-item" key={`${order.id}-${index}`}><div><strong>{item.qty} × {item.name}</strong>{item.choices?.length ? <small>{item.choices.join("، ")}</small> : null}</div><span>{money(item.price * item.qty)}</span></div>)}</div>
         <div className="order-total"><div><span>الطعام {money(order.foodTotal)}</span><span>التوصيل {money(order.deliveryFee)}</span><span>الدفع: {order.payment || "عند الاستلام"}</span></div><strong>{money(order.total)}</strong></div>
         <div className="order-actions">
+          {order.status === "new" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "processing")}><ChefHat size={17}/> بدء التجهيز</button>}
           <button className="outline-btn" onClick={() => void reprint(order.id)}><Printer size={17}/> إعادة طباعة</button>
           <button className="outline-btn" onClick={() => setPrintId(order.id)}>طباعة عبر نظام التشغيل</button>
           {order.status === "processing" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "ready")}>جاهز</button>}
