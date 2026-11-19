@@ -170,3 +170,86 @@
 .site-shell .category-cards button .category-placeholder{background:linear-gradient(135deg,#f1efe9,#d9d7cf)!important;color:#59635d!important}
 .site-shell .category-cards button::after{background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.08) 45%,rgba(0,0,0,.48))!important}
 .site-shell .category-cards button>span:last-child{color:#fff!important}
+
+
+/* Matamly green app-inspired visual refresh - presentation only */
+:root{
+  --olive:#176b3a;
+  --cream:#f4f7f3;
+  --paper:#ffffff;
+  --ink:#17251c;
+  --muted:#6d7d72;
+  --line:#e3ebe5;
+  --terracotta:#21864b;
+  --sand:#e8f2e9;
+  --shadow:0 12px 32px rgba(22,76,43,.10);
+}
+body{background:var(--cream);color:var(--ink)}
+button,a,.product-card,.cashier-order,.admin-sidebar{transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.primary-btn{background:linear-gradient(135deg,#21864b,#176b3a);border-radius:14px;box-shadow:0 7px 18px rgba(23,107,58,.18)}
+.primary-btn:hover{background:#145b32;box-shadow:0 10px 22px rgba(23,107,58,.22)}
+.outline-btn{border:1px solid #dce8df;border-radius:12px;background:#fff;color:#24613b}
+.outline-btn:hover{border-color:#83b996;background:#f2faf4}
+.site-shell .topbar{background:rgba(255,255,255,.94);border-bottom-color:#e4ece6;box-shadow:0 4px 18px rgba(23,75,42,.04)}
+.site-shell .brand,.site-shell .cart-trigger{color:#176b3a}
+.site-shell .hero h1,.site-shell .section-heading h2,.site-shell .promise h2{color:#145b32}
+.site-shell .hero h1 em,.site-shell .eyebrow,.site-shell .product-info>strong{color:#21864b}
+.site-shell .menu-section{background:#fff}
+.site-shell .category-tabs button{border-color:#dce9df;border-radius:14px;background:#f7faf7}
+.site-shell .category-tabs button.active,.site-shell .category-tabs button:hover{background:#176b3a;border-color:#176b3a}
+.site-shell .product-grid{gap:18px}
+.site-shell .product-card{padding:10px;border:1px solid #e7eee8;border-radius:20px;background:#fff;box-shadow:0 5px 18px rgba(24,75,43,.055)}
+.site-shell .product-card:hover{transform:translateY(-3px);box-shadow:0 12px 26px rgba(24,75,43,.11)}
+.site-shell .product-image{border-radius:15px;background:#edf4ee}
+.site-shell .product-info{padding:14px 5px 5px}
+.site-shell .add-float{background:#e9f6ec;color:#176b3a;box-shadow:none}
+.site-shell .add-float:hover{background:#176b3a;color:#fff}
+.site-shell .drawer,.site-shell .checkout-modal,.site-shell .account-modal{border-radius:24px 24px 0 0}
+.site-shell input,.site-shell select,.site-shell textarea{border-color:#dce8df;border-radius:12px}
+.site-shell input:focus,.site-shell select:focus,.site-shell textarea:focus{border-color:#58a875;box-shadow:0 0 0 3px rgba(33,134,75,.12);outline:0}
+.site-shell .category-cards button{border-radius:18px!important;box-shadow:0 7px 18px rgba(23,75,42,.09)!important}
+.cashier-shell{min-height:100vh;background:linear-gradient(180deg,#edf6ef 0,#f5f8f5 260px,#f4f7f3 100%);padding:24px}
+.cashier-header,.cashier-toolbar,.cashier-order,.cashier-empty{border:1px solid #e1ebe3;border-radius:20px;background:#fff;box-shadow:0 8px 24px rgba(25,75,43,.06)}
+.cashier-header{max-width:1200px;margin:0 auto 18px;padding:22px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.cashier-header h1{margin:5px 0;color:#145b32;font-size:clamp(23px,3vw,32px)}
+.cashier-header-sub{margin:0;color:#718076;font-size:13px}
+.cashier-header-actions{display:flex;gap:9px;flex-wrap:wrap}
+.cashier-main{max-width:1200px;margin:0 auto}
+.cashier-toolbar{padding:14px;margin-bottom:18px}
+.cashier-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.cashier-filters button{border:1px solid #e1ebe3;border-radius:12px;background:#f7faf7;color:#526257;padding:10px 14px}
+.cashier-filters button.active{background:#176b3a;border-color:#176b3a;color:#fff}
+.cashier-filters button b{margin-inline-start:7px}
+.cashier-search{display:flex;align-items:center;gap:9px;border:1px solid #e1ebe3;border-radius:12px;padding:0 12px;background:#fbfdfb}
+.cashier-search input{flex:1;min-width:0;border:0!important;box-shadow:none!important;background:transparent;padding:12px 2px;outline:0}
+.cashier-order{padding:18px;margin-bottom:14px}
+.cashier-order .order-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.cashier-order .order-head h2{margin:5px 0;color:#174e2d;font-size:22px}
+.cashier-order .order-status{border-radius:30px;padding:7px 13px;font-weight:700}
+.cashier-order .order-meta{display:flex;flex-wrap:wrap;gap:9px 16px;margin:14px 0;padding:12px;border-radius:13px;background:#f4f8f4;color:#58685d}
+.cashier-order .order-items{display:grid;gap:0}
+.cashier-order .cashier-item{padding:12px 3px;border-bottom:1px solid #edf1ed}
+.cashier-order .cashier-item strong{color:#203c2b}
+.cashier-order .order-total{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 3px}
+.cashier-order .order-total>strong{color:#176b3a;font-size:22px}
+.cashier-order .order-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.cashier-empty{padding:44px 20px;text-align:center;color:#176b3a}
+.admin-login{background:linear-gradient(145deg,#eaf5ed,#f7faf7)}
+.login-card{border:1px solid #e0ebe2;border-radius:24px;box-shadow:0 18px 45px rgba(23,75,42,.10)}
+.admin-sidebar{background:linear-gradient(180deg,#176b3a,#104b2b)!important}
+.admin-sidebar nav button{border-radius:12px!important}
+.admin-sidebar nav button.active,.admin-sidebar nav button:hover{background:rgba(255,255,255,.16)!important}
+.admin-main{background:#f5f8f5}
+.admin-main input,.admin-main select,.admin-main textarea,.management-shell input,.management-shell select,.management-shell textarea{border-radius:11px}
+@media(max-width:700px){
+ .cashier-shell{padding:12px}
+ .cashier-header{padding:16px;align-items:stretch;flex-direction:column}
+ .cashier-header-actions{display:grid;grid-template-columns:1fr 1fr}
+ .cashier-order{padding:13px;border-radius:16px}
+ .cashier-order .order-actions>*{flex:1 1 145px;justify-content:center}
+ .cashier-order .order-head h2{font-size:19px}
+ .site-shell .product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .site-shell .product-card{padding:7px;border-radius:15px}
+ .site-shell .product-image{height:clamp(125px,38vw,190px)}
+ .site-shell .product-info h3{font-size:14px}
+}
