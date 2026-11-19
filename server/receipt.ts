@@ -64,7 +64,7 @@ function formatItemTable(items: ReceiptOrder["items"]): string[] {
   const header = ["القسم", "اسم الصنف", "الكمية", "تخصيص"];
   const lines = [
     "تفاصيل الطلب للمطبخ",
-    header.map((cell, index) => wrapCellWords(cell, widths[index]).join(" ")).join(ITEM_SEPARATOR),
+    header.map((cell, index) => wrapCellWords(cell, widths[index])[0].padEnd(widths[index], " ")).join(ITEM_SEPARATOR),
     "-".repeat(ITEM_LINE_WIDTH),
   ];
 
