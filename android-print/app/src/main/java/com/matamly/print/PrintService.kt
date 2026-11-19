@@ -96,7 +96,7 @@ class PrintService : Service() {
             val receipt = envelope.getString("receiptText")
             printUsb(receipt)
             seen.add(key)
-            prefs.edit().putString("seen_jobs", seen.takeLast(500).joinToString("|")).apply()
+            prefs.edit().putString("seen_jobs", seen.toList().takeLast(500).joinToString("|")).apply()
             report(id, "submitted_to_spooler", "ok", "تم إرسال بيانات ESC/POS إلى منفذ USB؛ لم يتوفر تأكيد حساس خروج الورق")
         } catch (e: Exception) {
             report(id, "failed", "failed", (e.message ?: "USB print failed").take(450))
