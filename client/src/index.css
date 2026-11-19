@@ -253,3 +253,78 @@ button,a,.product-card,.cashier-order,.admin-sidebar{transition:background-color
  .site-shell .product-image{height:clamp(125px,38vw,190px)}
  .site-shell .product-info h3{font-size:14px}
 }
+
+
+/* Reference layout: customer home, cashier and printer screens */
+.site-shell{background:#f4f7f4;color:#17251c}
+.site-shell .topbar{height:68px;padding-inline:clamp(14px,4vw,54px);background:#fff;border-bottom:1px solid #e5ece6}
+.site-shell .hero{max-width:1180px;padding:24px 20px 30px;display:block}
+.site-shell .hero-copy{display:none}
+.site-shell .hero-art{height:clamp(190px,31vw,330px);border-radius:22px;overflow:hidden;position:relative;background:#173d27}
+.site-shell .hero-art>img{height:100%;width:100%;object-fit:cover;border-radius:0;filter:brightness(.76)}
+.site-shell .hero-art:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 15%,rgba(0,0,0,.68) 100%);pointer-events:none}
+.site-shell .hero-art .art-stamp{display:none}
+.site-shell .hero-art .art-caption{z-index:2;right:24px;bottom:22px;background:transparent;color:white;box-shadow:none;padding:0;text-align:right}
+.site-shell .hero-art .art-caption span{display:none}
+.site-shell .hero-art .art-caption strong{font-size:clamp(24px,4vw,38px);color:#fff;line-height:1.4}
+.site-shell .menu-section{max-width:1180px;margin:0 auto;padding:22px 20px 48px;background:transparent}
+.site-shell .section-heading{margin-bottom:18px;align-items:center}
+.site-shell .section-heading h2{font-size:25px}
+.site-shell .category-cards{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:12px!important}
+.site-shell .category-cards button{aspect-ratio:1/1!important;border-radius:18px!important;background:#fff!important;box-shadow:0 4px 14px rgba(20,70,38,.08)!important}
+.site-shell .category-cards button img{inset:8px 8px auto!important;width:calc(100% - 16px)!important;height:calc(100% - 36px)!important;object-fit:cover!important;border-radius:13px!important}
+.site-shell .category-cards button::after{display:none!important}
+.site-shell .category-cards button>span:last-child{inset:auto 4px 7px!important;padding:0!important;color:#25382b!important;text-shadow:none!important;text-align:center!important;font-size:clamp(10px,1.4vw,14px)!important}
+.site-shell .category-cards button .category-placeholder{inset:8px 8px auto!important;width:calc(100% - 16px)!important;height:calc(100% - 36px)!important;border-radius:13px!important;background:linear-gradient(145deg,#e7f1e8,#cbdccc)!important}
+.site-shell .product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.site-shell .product-card{padding:8px;border-radius:18px;box-shadow:0 4px 14px rgba(20,70,38,.07)}
+.site-shell .product-image{height:clamp(130px,25vw,230px);border-radius:13px}
+.site-shell .product-info{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px;padding:10px 4px 4px}
+.site-shell .product-info h3{font-size:15px;margin-bottom:4px}
+.site-shell .product-info>strong{grid-column:2;grid-row:1;font-size:14px}
+.site-shell .quick-add-btn{grid-column:1/-1;width:100%;border-radius:11px;background:#19813e;color:white;padding:9px 10px;font-weight:700}
+.site-shell .add-float{width:34px;height:34px;border-radius:10px;background:#19813e;color:white}
+.site-shell .site-footer{background:#fff}
+.cashier-shell{padding:0 16px 30px;background:#f3f5f3;min-height:100vh}
+.cashier-header{max-width:none;margin:0 -16px 18px;padding:20px max(18px,calc((100vw - 1120px)/2));border:0;border-radius:0 0 22px 22px;background:linear-gradient(135deg,#21843f,#145b2c);color:#fff;box-shadow:0 8px 24px rgba(15,75,34,.18)}
+.cashier-header .eyebrow,.cashier-header h1,.cashier-header-sub{color:#fff}
+.cashier-header h1{font-size:25px}
+.cashier-header-sub{opacity:.86}
+.cashier-header .outline-btn{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.3);color:#fff}
+.cashier-main{max-width:1000px}
+.cashier-toolbar{border:0;border-radius:20px;padding:12px;background:#fff;box-shadow:0 4px 16px rgba(20,60,35,.06)}
+.cashier-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.cashier-filters button{border:0;border-radius:24px;background:#edf1ed;color:#25382b;padding:10px 8px;font-weight:700}
+.cashier-filters button.active{background:#d92d24;color:#fff}
+.cashier-order{border-radius:18px;padding:15px;border:1px solid #e7ece8;box-shadow:0 4px 15px rgba(20,60,35,.07)}
+.cashier-order .order-head h2{font-size:20px}
+.cashier-order .order-meta{background:#f6f7f6}
+.cashier-order .order-total>strong{color:#176b3a}
+.cashier-order .order-actions .primary-btn{border-radius:12px}
+.admin-main{background:#f3f6f3}
+.admin-main .panel,.admin-main .stat-card,.admin-main .ops-panel{border-radius:18px}
+@media(max-width:700px){
+ .site-shell .topbar{height:62px;padding:0 14px}
+ .site-shell .topbar nav{position:fixed;z-index:40;left:10px;right:10px;bottom:8px;height:62px;padding:7px 8px;display:flex;justify-content:space-around;align-items:center;gap:4px;background:rgba(255,255,255,.97);border:1px solid #e2eae3;border-radius:18px;box-shadow:0 8px 28px rgba(15,55,30,.18);backdrop-filter:blur(14px)}
+ .site-shell .topbar nav a{font-size:11px;font-weight:700;padding:8px 5px;color:#4b5d50}
+ .site-shell .hero{padding:14px 12px 20px}
+ .site-shell .hero-art{height:190px;border-radius:18px}
+ .site-shell .hero-art .art-caption{right:16px;bottom:16px}
+ .site-shell .menu-section{padding:18px 12px 34px}
+ .site-shell .category-cards{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:7px!important}
+ .site-shell .category-cards button{border-radius:13px!important}
+ .site-shell .category-cards button img{inset:5px 5px auto!important;width:calc(100% - 10px)!important;height:calc(100% - 30px)!important;border-radius:9px!important}
+ .site-shell .category-cards button .category-placeholder{inset:5px 5px auto!important;width:calc(100% - 10px)!important;height:calc(100% - 30px)!important;border-radius:9px!important}
+ .site-shell .category-cards button>span:last-child{font-size:9px!important;bottom:5px!important}
+ .site-shell .product-grid{gap:9px}
+ .site-shell .product-card{padding:6px;border-radius:14px}
+ .site-shell .product-image{height:clamp(112px,34vw,155px)}
+ .site-shell .product-info h3{font-size:13px}
+ .site-shell .quick-add-btn{font-size:11px;padding:8px 5px}
+ .cashier-shell{padding:0 10px 20px}
+ .cashier-header{margin:0 -10px 12px;padding:18px 14px;border-radius:0 0 18px 18px}
+ .cashier-header h1{font-size:22px}
+ .cashier-filters{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .cashier-filters button{font-size:12px;padding:9px 4px}
+ .cashier-order{padding:12px}
+}
