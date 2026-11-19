@@ -13,84 +13,27 @@ export type ReceiptOrder = {
   items: { name: string; category?: string; description?: string; qty: number; price: number; choices?: string[] }[];
 };
 
-const ITEM_COLUMNS = [10, 10, 5, 8] as const;
-const ITEM_SEPARATOR = " | ";
-const ITEM_LINE_WIDTH = ITEM_COLUMNS.reduce((sum, width) => sum + width, 0) + ITEM_SEPARATOR.length * 3;
+function formatItemDetails(items: ReceiptOrder["items"]): string[] {
+  const lines = ["تفاصيل الطلب للمطبخ"];
 
-function wrapCell(value: string, width: number): string[] {
-  const words = Array.from(value.trim() || "-");
-  const result: string[] = [];
-  let line = "";
+  items.forEach((item, index) => {
+    if (index > 0) lines.push("------------------------------");
 
-  for (const word of words) {
-    if (Array.from(line).length >= width) {
-      result.push(line);
-      line = "";
-    }
-    line += word;
-  }
+    lines.push(
+      `القسم: ${item.category || "غير محدد"}`,
+      `الكمية: ${item.qty}`,
+      `الصنف: ${item.name}`,
+    );
 
-  if (line || result.length === 0) result.push(line);
-  return result;
-}
-
-function wrapCellWords(value: string, width: number): string[] {
-  const words = value.trim().split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let line = "";
-
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (Array.from(candidate).length <= width) {
-      line = candidate;
-      continue;
-    }
-    if (line) lines.push(line);
-    if (Array.from(word).length <= width) {
-      line = word;
-    } else {
-      const parts = wrapCell(word, width);
-      lines.push(...parts.slice(0, -1));
-      line = parts[parts.length - 1] || "";
-    }
-  }
-
-  if (line || lines.length === 0) lines.push(line);
-  return lines;
-}
-
-function formatItemTable(items: ReceiptOrder["items"]): string[] {
-  const widths = ITEM_COLUMNS;
-  const header = ["القسم", "اسم الصنف", "الكمية", "تخصيص"];
-  const lines = [
-    "تفاصيل الطلب للمطبخ",
-    header.map((cell, index) => wrapCellWords(cell, widths[index])[0].padEnd(widths[index], " ")).join(ITEM_SEPARATOR),
-    "-".repeat(ITEM_LINE_WIDTH),
-  ];
-
-  for (const item of items) {
     const customization = [
       ...(item.description ? [item.description] : []),
       ...(item.choices || []),
-    ].join("، ");
-    const cells = [
-      item.category || "-",
-      item.name || "-",
-      String(item.qty),
-      customization,
-    ];
-    const wrapped = cells.map((cell, index) => wrapCellWords(cell, widths[index]));
-    const rowHeight = Math.max(...wrapped.map((cell) => cell.length));
+    ].filter(Boolean);
 
-    for (let row = 0; row < rowHeight; row++) {
-      lines.push(
-        wrapped
-          .map((cell, index) => (cell[row] || "").padEnd(widths[index], " "))
-          .join(ITEM_SEPARATOR)
-          .trimEnd(),
-      );
+    if (customization.length) {
+      lines.push(`التخصيص: ${customization.join("، ")}`);
     }
-  }
+  });
 
   return lines;
 }
@@ -115,7 +58,7 @@ export function buildReceipt(order: ReceiptOrder, restaurantName: string) {
     if (order.zone) lines.push(`المنطقة: ${order.zone}`);
     if (order.address) lines.push(`العنوان: ${order.address}`);
   }
-  lines.push("--------------------------------", ...formatItemTable(order.items), "--------------------------------");
+  lines.push("--------------------------------", ...formatItemDetails(order.items), "--------------------------------");
   lines.push(
     `قيمة الطعام: ${order.foodTotal.toFixed(3)} د.ك`,
     `رسوم التوصيل: ${order.deliveryFee.toFixed(3)} د.ك`,
