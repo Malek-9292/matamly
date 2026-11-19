@@ -162,7 +162,7 @@ class PrintService : Service() {
 
     private fun processJob(job: JSONObject) {
         val id = job.getInt("jobId")
-        val key = job.optString("idempotencyKey", "job-$id")
+        val key = job.optString("idempotencyKey", "").ifBlank { "job-$id" }
         when (stateOf(key)) {
             "submitted" -> {
                 report(id, "submitted_to_spooler", "ok", "المهمة سبق إرسالها للطابعة؛ تم منع إعادة الإرسال")
