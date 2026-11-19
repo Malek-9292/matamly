@@ -16,6 +16,7 @@ export default function PrintManagement() {
   const [platform,setPlatform]=useState("android");
   const [newToken,setNewToken]=useState("");
   const [pairedId,setPairedId]=useState("");
+  const [printerTargetId,setPrinterTargetId]=useState("");
   const [printerName,setPrinterName]=useState("Epson TM-T20II");
   const [model,setModel]=useState("Epson TM-T20II");
   const [connectionType,setConnectionType]=useState("usb");
@@ -42,16 +43,17 @@ export default function PrintManagement() {
     try{
       const r=await fetch("/api/admin/print/devices/pair",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,platform})});
       const d=await r.json();if(!r.ok)throw new Error(d.message||"تعذر تسجيل الجهاز");
-      setPairedId(d.id);setNewToken(d.token);setName("");setMessage("تم إنشاء بيانات الجهاز. انسخ رمز الربط الآن؛ لن يظهر مرة أخرى.");
+      setPairedId(d.id);setPrinterTargetId(d.id);setNewToken(d.token);setName("");setMessage("تم إنشاء بيانات الجهاز. انسخ رمز الربط الآن؛ لن يظهر مرة أخرى.");
       await load();
     }catch(e){setError(e instanceof Error?e.message:"تعذر تسجيل الجهاز");}
     finally{setBusy(false);}
   };
   const addPrinter=async()=>{
-    if(!pairedId)return;
+    const targetId=printerTargetId||pairedId;
+    if(!targetId)return;
     setBusy(true);setError("");setMessage("");
     try{
-      const r=await fetch("/api/admin/print/printers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:pairedId,name:printerName,model,connectionType,address:printerAddress,isDefault:true})});
+      const r=await fetch("/api/admin/print/printers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId:targetId,name:printerName,model,connectionType,address:printerAddress,isDefault:true})});
       const d=await r.json();if(!r.ok)throw new Error(d.message||"تعذرت إضافة الطابعة");
       setMessage("تمت إضافة الطابعة كافتراضية للجهاز.");await load();
     }catch(e){setError(e instanceof Error?e.message:"تعذرت إضافة الطابعة");}
@@ -114,7 +116,7 @@ export default function PrintManagement() {
     {devices.length===0?<div style={panel}>لا توجد أجهزة مسجلة حتى الآن.</div>:devices.map(device=><div key={device.id} style={panel}>
       <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}>
         <div><strong>{device.name}</strong><div style={{fontSize:13,color:"#62746a",marginTop:5}}>{device.platform} · {device.status} · {device.appVersion||"لم يرسل إصدار التطبيق بعد"}</div><div style={{fontSize:12,color:"#839087",marginTop:4}}>آخر اتصال: {device.lastSeenAt?new Date(device.lastSeenAt).toLocaleString("ar-KW"):"لم يتصل بعد"}</div></div>
-        <button style={{...button,background:"#fff",color:"#a32929",border:"1px solid #e3c6c6"}} onClick={()=>void revoke(device.id)}><Trash2 size={15} style={{verticalAlign:"middle",marginInlineEnd:6}}/>إلغاء التسجيل</button>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button style={{...button,background:"#fff",color:"#183d30",border:"1px solid #d7ddd8"}} onClick={()=>{setPrinterTargetId(device.id);setPrinterName("Epson TM-T20II");setModel("Epson TM-T20II");setConnectionType("usb");setPrinterAddress("");setMessage("");setError("");}}><Printer size={15} style={{verticalAlign:"middle",marginInlineEnd:6}}/>إضافة طابعة</button><button style={{...button,background:"#fff",color:"#a32929",border:"1px solid #e3c6c6"}} onClick={()=>void revoke(device.id)}><Trash2 size={15} style={{verticalAlign:"middle",marginInlineEnd:6}}/>إلغاء التسجيل</button></div>
       </div>
       <div style={{marginTop:12,display:"grid",gap:8}}>{device.printers.length?device.printers.map(p=><div key={p.id} style={{padding:12,borderRadius:10,background:"#f5f8f5",display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}><span><Printer size={15} style={{verticalAlign:"middle",marginInlineEnd:6}}/><strong>{p.name}</strong> · {p.model} · {p.connectionType}</span><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><small>{p.isDefault?"الافتراضية":"إضافية"} · {p.enabled?"مفعلة":"معطلة"}</small><button style={{...button,padding:"6px 9px",fontSize:12}} onClick={()=>void updatePrinter(device.id,p,{isDefault:true,enabled:true})}>تعيين افتراضية</button><button style={{...button,padding:"6px 9px",fontSize:12,background:"#fff",color:"#183d30",border:"1px solid #d7ddd8"}} onClick={()=>void updatePrinter(device.id,p,{enabled:!p.enabled})}>{p.enabled?"تعطيل":"تفعيل"}</button></div></div>):<small style={{color:"#8b5a21"}}>لم تتم إضافة طابعة لهذا الجهاز بعد.</small>}</div>
     </div>)}
