@@ -198,25 +198,51 @@ async function importLegacy(db: Pool, store: MatamlyStore) {
 
 export async function initRestaurant() {
   const db = getPool();
-  await migrate(db);
-  if (await document(db, "import_complete")) return;
-  const dataFile = process.env.MATAMLY_DATA_FILE || path.join(process.cwd(), "data", "matamly.json");
-  let legacy: MatamlyStore | null = null;
+  // Render may briefly run the old and new web instances together during a
+  // rolling deploy. Serialize schema migration and legacy seeding across them.
+  // MySQL advisory locks are connection-scoped, so keep this connection open
+  // until the complete initialization sequence has finished.
+  const lockConnection = await db.getConnection();
+  let lockAcquired = false;
   try {
-    await access(dataFile);
-    legacy = await readStore();
-  } catch { legacy = null; }
-  if (legacy) await importLegacy(db, legacy);
-  if (!(await document(db, "menu"))) {
-    const seed = JSON.parse(await readFile(path.join(process.cwd(), "server", "seed", "default-menu.json"), "utf8"));
-    await saveDocument(db, "menu", seed);
+    const [lockRows] = await lockConnection.query<RowDataPacket[]>(
+      "SELECT GET_LOCK(?, 120) AS acquired",
+      ["matamly_restaurant_initialization"],
+    );
+    lockAcquired = Number(lockRows[0]?.acquired) === 1;
+    if (!lockAcquired) {
+      throw new Error("Timed out waiting for the restaurant database initialization lock");
+    }
+
+    await migrate(db);
+    if (await document(db, "import_complete")) return;
+    const dataFile = process.env.MATAMLY_DATA_FILE || path.join(process.cwd(), "data", "matamly.json");
+    let legacy: MatamlyStore | null = null;
+    try {
+      await access(dataFile);
+      legacy = await readStore();
+    } catch { legacy = null; }
+    if (legacy) await importLegacy(db, legacy);
+    if (!(await document(db, "menu"))) {
+      const seed = JSON.parse(await readFile(path.join(process.cwd(), "server", "seed", "default-menu.json"), "utf8"));
+      await saveDocument(db, "menu", seed);
+    }
+    if ((await areaCount(db)) === 0) {
+      const zones = JSON.parse(await readFile(path.join(process.cwd(), "server", "seed", "default-zones.json"), "utf8")) as { name: string; fee: number }[];
+      await insertAreas(db, zones.map((zone) => ({ name: zone.name, fee: Number(zone.fee) || 0, minimumOrder: 3 })));
+    }
+    await ensureDefaults(db);
+    await saveDocument(db, "import_complete", "1");
+  } finally {
+    if (lockAcquired) {
+      try {
+        await lockConnection.query("SELECT RELEASE_LOCK(?)", ["matamly_restaurant_initialization"]);
+      } catch (error) {
+        console.warn("[Database] Could not release initialization lock cleanly:", error);
+      }
+    }
+    lockConnection.release();
   }
-  if ((await areaCount(db)) === 0) {
-    const zones = JSON.parse(await readFile(path.join(process.cwd(), "server", "seed", "default-zones.json"), "utf8")) as { name: string; fee: number }[];
-    await insertAreas(db, zones.map((zone) => ({ name: zone.name, fee: Number(zone.fee) || 0, minimumOrder: 3 })));
-  }
-  await ensureDefaults(db);
-  await saveDocument(db, "import_complete", "1");
 }
 
 export async function getMenu() {
