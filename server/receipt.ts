@@ -13,7 +13,7 @@ export type ReceiptOrder = {
   items: { name: string; category?: string; description?: string; qty: number; price: number; choices?: string[] }[];
 };
 
-const ITEM_COLUMNS = [11, 10, 4, 13] as const;
+const ITEM_COLUMNS = [10, 10, 5, 8] as const;
 const ITEM_SEPARATOR = " | ";
 const ITEM_LINE_WIDTH = ITEM_COLUMNS.reduce((sum, width) => sum + width, 0) + ITEM_SEPARATOR.length * 3;
 
@@ -39,7 +39,7 @@ function wrapCellWords(value: string, width: number): string[] {
   const lines: string[] = [];
   let line = "";
 
-  for (const word of words.length ? words : ["-"]) {
+  for (const word of words) {
     const candidate = line ? `${line} ${word}` : word;
     if (Array.from(candidate).length <= width) {
       line = candidate;
@@ -72,7 +72,7 @@ function formatItemTable(items: ReceiptOrder["items"]): string[] {
     const customization = [
       ...(item.description ? [item.description] : []),
       ...(item.choices || []),
-    ].join("، ") || "-";
+    ].join("، ");
     const cells = [
       item.category || "-",
       item.name || "-",
