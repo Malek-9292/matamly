@@ -3,6 +3,7 @@ export type MenuProduct = {
   name: string;
   price: number;
   options?: string[];
+  category?: string;
   hidden?: boolean;
 };
 
@@ -17,6 +18,7 @@ export type SubmittedOrderItem = {
 export type NormalizedOrderItem = {
   productId?: number | string;
   name: string;
+  category?: string;
   qty: number;
   price: number;
   choices: string[];
@@ -57,7 +59,7 @@ export function normalizeOrderItems(
       if (choices.some((choice) => !allowedChoices.includes(choice))) {
         return { items: [], error: `اختيارات صنف ${name} تغيرت. حدّث القائمة وحاول مرة أخرى.` };
       }
-      items.push({ productId: product.id, name, qty, price, choices });
+      items.push({ productId: product.id, name, category: cleanText(product.category, 100), qty, price, choices });
       continue;
     }
 
