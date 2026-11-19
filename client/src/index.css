@@ -579,3 +579,16 @@ button,a,.product-card,.cashier-order,.admin-sidebar{transition:background-color
   .site-shell main>.contact-panel{display:none!important}
   .site-shell .site-footer{display:none!important}
 }
+
+
+/* Delivery / pickup selector directly under restaurant name */
+.brand-service-switch{display:flex;align-items:center;justify-content:center;gap:7px;margin:8px auto 0;width:100%;direction:rtl}
+.brand-service-switch button{border:1px solid #168b32;border-radius:10px;background:#fff;color:#176b31;padding:7px 13px;font-size:12px;font-weight:800;line-height:1.2;white-space:nowrap;cursor:pointer}
+.brand-service-switch button.active{background:#168b32;color:#fff;box-shadow:0 2px 7px rgba(22,139,50,.18)}
+.brand-service-switch button.unavailable{opacity:.48}
+@media(max-width:700px){
+ .site-shell>.topbar{height:auto!important;min-height:140px!important;padding:9px 12px 12px!important}
+ .site-shell>.topbar .brand{width:100%!important}
+ .site-shell>.topbar .brand-service-switch{display:flex!important;gap:7px!important;margin-top:8px!important}
+ .site-shell>.topbar .brand-service-switch button{font-size:12px!important;padding:8px 12px!important}
+}
