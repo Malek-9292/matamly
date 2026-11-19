@@ -162,7 +162,6 @@ export default function Cashier() {
         <div className="order-actions">
           <button className="outline-btn" onClick={() => void reprint(order.id)}><Printer size={17}/> إعادة طباعة</button>
           <button className="outline-btn" onClick={() => setPrintId(order.id)}>طباعة عبر نظام التشغيل</button>
-          {order.status === "new" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "processing")}><ChefHat size={17}/> بدء التجهيز</button>}
           {order.status === "processing" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "ready")}>جاهز</button>}
           {order.status === "ready" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "completed")}><Check size={17}/> مكتمل</button>}
           {order.status !== "cancelled" && order.status !== "completed" && <button className="cashier-cancel-btn" onClick={() => { if (window.confirm("هل تريد إلغاء هذا الطلب؟")) void updateStatus(order.id, "cancelled"); }}><XCircle size={16}/> إلغاء</button>}
