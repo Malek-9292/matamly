@@ -56,6 +56,15 @@ export function getPool() {
   return pool;
 }
 
+export async function resetPool() {
+  const previous = pool;
+  pool = null;
+  if (previous) {
+    try { await previous.end(); }
+    catch (error) { console.warn("[Database] Previous pool shutdown failed:", error); }
+  }
+}
+
 export function setPoolForTests(next: Pool | null) {
   pool = next;
 }
