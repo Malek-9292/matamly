@@ -26,30 +26,46 @@ let pool: Pool | null = null;
  * Never log the connection URI or credentials.
  */
 export async function diagnoseDatabaseConnection() {
-  // Run Enzonic's exact documented Node.js/mysql2 example in isolation.
-  // This intentionally bypasses the application's pool options and URL normalization.
-  let testPool: Pool | undefined;
-  try {
-    testPool = mysql.createPool({ uri: process.env.DATABASE_URL, ssl: {} });
-    const [rows] = await testPool.query<RowDataPacket[]>("select now() as now");
-    console.info("[DB official-example test] mysql2 pool connection and SELECT NOW() succeeded", {
-      serverTime: rows[0]?.now ? String(rows[0].now) : "query returned no timestamp",
-    });
-    return { ok: true as const };
-  } catch (error) {
-    const details = error as NodeJS.ErrnoException & { fatal?: boolean };
-    console.error("[DB official-example test] Connection failed", {
-      code: details.code || "UNKNOWN",
-      message: details.message || "No error message",
-      syscall: details.syscall,
-      fatal: details.fatal,
-    });
-    return { ok: false as const, code: details.code || "UNKNOWN" };
-  } finally {
-    if (testPool) {
-      try { await testPool.end(); } catch { /* diagnostic cleanup */ }
+  const attempts = [
+    { name: "normalized-url", uri: getMysql2DatabaseUri() },
+  ];
+  const results: { name: string; ok: boolean; code?: string; message?: string }[] = [];
+
+  for (const attempt of attempts) {
+    let testPool: Pool | undefined;
+    try {
+      // Keep TLS mandatory and remove only mysql2's unsupported ssl-mode URL flag.
+      testPool = mysql.createPool({
+        uri: attempt.uri,
+        ssl: { rejectUnauthorized: true },
+        waitForConnections: true,
+        connectionLimit: 1,
+        connectTimeout: 15000,
+      });
+      const [rows] = await testPool.query<RowDataPacket[]>("SELECT NOW() AS now");
+      console.info("[DB handshake diagnostic] Connection and SELECT succeeded", {
+        test: attempt.name,
+        serverTime: rows[0]?.now ? String(rows[0].now) : "no timestamp",
+      });
+      results.push({ name: attempt.name, ok: true });
+    } catch (error) {
+      const details = error as NodeJS.ErrnoException & { fatal?: boolean };
+      const result = {
+        name: attempt.name,
+        ok: false,
+        code: details.code || "UNKNOWN",
+        message: details.message || "No error message",
+      };
+      console.error("[DB handshake diagnostic] Connection failed", result);
+      results.push(result);
+    } finally {
+      if (testPool) {
+        try { await testPool.end(); } catch { /* diagnostic cleanup */ }
+      }
     }
   }
+
+  return { ok: results.every((result) => result.ok), results };
 }
 
 export function getPool() {
