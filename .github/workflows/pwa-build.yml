@@ -20,9 +20,13 @@ on:
       - development
     paths:
       - "client/**"
+      - "server/**"
+      - "shared/**"
+      - "drizzle/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "vite.config.ts"
+      - "tsconfig.json"
       - ".github/workflows/pwa-build.yml"
   workflow_dispatch:
 
