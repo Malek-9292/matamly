@@ -24,21 +24,11 @@ export function getPool() {
   const uri = process.env.DATABASE_URL || "";
   if (!uri) throw new Error("DATABASE_URL is required");
 
-  // Parse DATABASE_URL into mysql2's documented PoolOptions shape.
-  // mysql2 accepts a URI as the sole createPool argument, but URI and TLS
-  // options cannot be combined that way; use explicit fields to enforce TLS.
-  const connectionUrl = new URL(uri);
-  connectionUrl.searchParams.delete("ssl-mode");
-
-  const database = decodeURIComponent(connectionUrl.pathname.replace(/^\//, ""));
+  // Enzonic's official mysql2 example uses the URI option with TLS enabled.
+  // Keep the URI intact so mysql2 parses credentials, host, port and database.
   const options = {
-    host: connectionUrl.hostname,
-    port: connectionUrl.port ? Number(connectionUrl.port) : 3306,
-    user: decodeURIComponent(connectionUrl.username),
-    password: decodeURIComponent(connectionUrl.password),
-    database,
-    // Enzonic provides a valid TLS hostname certificate; keep verification on.
-    ssl: { servername: connectionUrl.hostname, minVersion: "TLSv1.2" as const },
+    uri,
+    ssl: {},
     connectionLimit: 5,
     maxIdle: 2,
     idleTimeout: 4 * 60 * 1000,
