@@ -24,20 +24,16 @@ export function getPool() {
   const uri = process.env.DATABASE_URL || "";
   if (!uri) throw new Error("DATABASE_URL is required");
 
-  // mysql2 does not understand the CLI-style ssl-mode query parameter.
-  // Parse the URL into native mysql2 options and enable TLS explicitly.
+  // Match Enzonic's documented mysql2 setup: pass the connection URI
+  // through mysql2's native uri option and require TLS on every connection.
+  // Remove the CLI-style ssl-mode parameter; TLS is enabled explicitly below.
   const connectionUrl = new URL(uri);
-  const sslMode = connectionUrl.searchParams.get("ssl-mode")?.toUpperCase();
   connectionUrl.searchParams.delete("ssl-mode");
 
-  const database = decodeURIComponent(connectionUrl.pathname.replace(/^\//, ""));
   const options = {
-    host: connectionUrl.hostname,
-    port: connectionUrl.port ? Number(connectionUrl.port) : 3306,
-    user: decodeURIComponent(connectionUrl.username),
-    password: decodeURIComponent(connectionUrl.password),
-    database,
-    ...(sslMode === "REQUIRED" ? { ssl: { servername: connectionUrl.hostname, minVersion: "TLSv1.2" as const, rejectUnauthorized: true } } : {}),
+    uri: connectionUrl.toString(),
+    ssl: {},
+
     // Keep idle sockets shorter than Enzonic's 5-minute scale-to-zero window,
     // so mysql2 does not hand requests a socket that the sleeping DB has closed.
     connectionLimit: 5,
