@@ -309,3 +309,6 @@ button,a,.product-card,.cashier-order,.admin-sidebar{transition:background-color
  .admin-design-controls .color-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:380px){.admin-design-quick-grid{grid-template-columns:1fr}.admin-design-quick-grid button{min-height:0}}
+
+/* تقليل الفراغ أعلى قسم الأقسام على الموبايل ورفع بطاقات الأقسام */
+@media(max-width:700px){.menu-section{padding-top:18px!important;padding-bottom:48px!important}.menu-section .section-heading{margin-top:0!important;margin-bottom:14px!important}.menu-section .category-cards{margin-top:0!important;padding-top:0!important}}
