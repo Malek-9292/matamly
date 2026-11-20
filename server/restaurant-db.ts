@@ -20,6 +20,41 @@ export class RestaurantError extends Error {
 
 let pool: Pool | null = null;
 
+/**
+ * Run one direct MySQL connection attempt to expose the underlying handshake
+ * error (the pool can otherwise surface only PROTOCOL_CONNECTION_LOST).
+ * Never log the connection URI or credentials.
+ */
+export async function diagnoseDatabaseConnection() {
+  const uri = getMysql2DatabaseUri();
+  let connection: Awaited<ReturnType<typeof mysql.createConnection>> | undefined;
+  try {
+    connection = await mysql.createConnection({
+      uri,
+      ssl: {},
+      connectTimeout: 15_000,
+      charset: "utf8mb4",
+      timezone: "Z",
+    });
+    await connection.query("SELECT 1");
+    console.info("[DB diagnostic] Direct MySQL connection and TLS handshake succeeded");
+    return { ok: true as const };
+  } catch (error) {
+    const details = error as NodeJS.ErrnoException & { fatal?: boolean };
+    console.error("[DB diagnostic] Direct connection failed", {
+      code: details.code || "UNKNOWN",
+      message: details.message || "No error message",
+      syscall: details.syscall,
+      fatal: details.fatal,
+    });
+    return { ok: false as const, code: details.code || "UNKNOWN" };
+  } finally {
+    if (connection) {
+      try { await connection.end(); } catch { /* diagnostic cleanup */ }
+    }
+  }
+}
+
 export function getPool() {
   if (pool) return pool;
   const uri = getMysql2DatabaseUri();
