@@ -18,7 +18,7 @@ describe("printer-independent receipt", () => {
       total: 2.5,
       items: [{ name: "فلافل", qty: 2, price: 1, choices: ["بدون ثوم"] }],
     }, "فتوش الخالدية");
-    expect(receipt).toContain("طلب رقم 12");
+    expect(receipt).toContain("طلب رقم: 12");
     expect(receipt).toContain("بدون ثوم");
     expect(receipt).not.toMatch(/ESC|TM-T20|Epson/i);
   });
