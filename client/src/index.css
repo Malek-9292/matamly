@@ -312,3 +312,6 @@ button,a,.product-card,.cashier-order,.admin-sidebar{transition:background-color
 
 /* تقليل الفراغ أعلى قسم الأقسام على الموبايل ورفع بطاقات الأقسام */
 @media(max-width:700px){.menu-section{padding-top:18px!important;padding-bottom:48px!important}.menu-section .section-heading{margin-top:0!important;margin-bottom:14px!important}.menu-section .category-cards{margin-top:0!important;padding-top:0!important}}
+
+/* ضغط المساحة أعلى عنوان الأقسام في تصميم الموبايل الحالي */
+@media(max-width:700px){.layout-mudir .menu-section{padding-top:0!important}.layout-mudir .menu-section .section-heading{margin-top:0!important;margin-bottom:4px!important;padding-top:0!important;padding-bottom:0!important;gap:2px!important}.layout-mudir .menu-section .section-heading h2{margin-top:0!important;line-height:1.15!important}.layout-mudir .menu-section .category-cards{margin-top:0!important;padding-top:0!important}}
