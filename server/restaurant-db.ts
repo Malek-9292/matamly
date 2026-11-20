@@ -26,22 +26,19 @@ let pool: Pool | null = null;
  * Never log the connection URI or credentials.
  */
 export async function diagnoseDatabaseConnection() {
-  const uri = getMysql2DatabaseUri();
-  let connection: Awaited<ReturnType<typeof mysql.createConnection>> | undefined;
+  // Run Enzonic's exact documented Node.js/mysql2 example in isolation.
+  // This intentionally bypasses the application's pool options and URL normalization.
+  let testPool: Pool | undefined;
   try {
-    connection = await mysql.createConnection({
-      uri,
-      ssl: {},
-      connectTimeout: 15_000,
-      charset: "utf8mb4",
-      timezone: "Z",
+    testPool = mysql.createPool({ uri: process.env.DATABASE_URL, ssl: {} });
+    const [rows] = await testPool.query<RowDataPacket[]>("select now() as now");
+    console.info("[DB official-example test] mysql2 pool connection and SELECT NOW() succeeded", {
+      serverTime: rows[0]?.now ? String(rows[0].now) : "query returned no timestamp",
     });
-    await connection.query("SELECT 1");
-    console.info("[DB diagnostic] Direct MySQL connection and TLS handshake succeeded");
     return { ok: true as const };
   } catch (error) {
     const details = error as NodeJS.ErrnoException & { fatal?: boolean };
-    console.error("[DB diagnostic] Direct connection failed", {
+    console.error("[DB official-example test] Connection failed", {
       code: details.code || "UNKNOWN",
       message: details.message || "No error message",
       syscall: details.syscall,
@@ -49,8 +46,8 @@ export async function diagnoseDatabaseConnection() {
     });
     return { ok: false as const, code: details.code || "UNKNOWN" };
   } finally {
-    if (connection) {
-      try { await connection.end(); } catch { /* diagnostic cleanup */ }
+    if (testPool) {
+      try { await testPool.end(); } catch { /* diagnostic cleanup */ }
     }
   }
 }
