@@ -309,36 +309,3 @@ button,a,.product-card,.cashier-order,.admin-sidebar{transition:background-color
  .admin-design-controls .color-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:380px){.admin-design-quick-grid{grid-template-columns:1fr}.admin-design-quick-grid button{min-height:0}}
-
-
-/* Restaurant logo occupies the full brand area when an uploaded logo exists. */
-.site-shell>.topbar .brand.brand-logo-only{
-  display:flex;
-  flex-direction:column;
-  align-items:stretch;
-  justify-content:center;
-  gap:8px;
-  min-width:0;
-}
-.site-shell>.topbar .brand.brand-logo-only .brand-logo{
-  display:block;
-  width:100%!important;
-  max-width:260px;
-  height:clamp(112px,22vw,170px)!important;
-  margin-inline:auto;
-  object-fit:contain!important;
-  border-radius:12px;
-}
-.site-shell>.topbar .brand.brand-logo-only .brand-service-switch{
-  margin:0 auto;
-}
-@media(max-width:700px){
-  .site-shell>.topbar .brand.brand-logo-only{
-    width:100%!important;
-    flex:1 0 100%;
-  }
-  .site-shell>.topbar .brand.brand-logo-only .brand-logo{
-    max-width:none;
-    height:clamp(130px,38vw,180px)!important;
-  }
-}
