@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { access } from "node:fs/promises";
 import mysql, { type Pool, type ResultSetHeader, type RowDataPacket } from "mysql2/promise";
+import { getMysql2DatabaseUri } from "./database-url";
 import { pickSharedSettings } from "../shared/settings";
 import { findAreaConflicts, money, resolveAreas, type AreaRule, type GroupRule } from "./delivery-rules";
 import { prepareOrder } from "./order-rules";
@@ -21,11 +22,9 @@ let pool: Pool | null = null;
 
 export function getPool() {
   if (pool) return pool;
-  const uri = process.env.DATABASE_URL || "";
-  if (!uri) throw new Error("DATABASE_URL is required");
+  const uri = getMysql2DatabaseUri();
 
-  // Enzonic's official mysql2 example uses the URI option with TLS enabled.
-  // Keep the URI intact so mysql2 parses credentials, host, port and database.
+  // Remove the unsupported ssl-mode URI parameter and enable TLS explicitly.
   const options = {
     uri,
     ssl: {},
