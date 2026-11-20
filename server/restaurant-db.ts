@@ -30,7 +30,7 @@ export function getPool() {
   const connectionUrl = new URL(uri);
   connectionUrl.searchParams.delete("ssl-mode");
 
-  const database = decodeURIComponent(connectionUrl.pathname.replace(/^\\//, ""));
+  const database = decodeURIComponent(connectionUrl.pathname.replace(/^\//, ""));
   const options = {
     host: connectionUrl.hostname,
     port: connectionUrl.port ? Number(connectionUrl.port) : 3306,
