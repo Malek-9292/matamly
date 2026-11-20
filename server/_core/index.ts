@@ -10,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { initRestaurant, registerRestaurantRoutes } from "../restaurant-routes";
+import { resetPool } from "../restaurant-db";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -121,6 +122,9 @@ async function startServer() {
     } catch (error) {
       attempt += 1;
       console.error(`Restaurant initialization failed (attempt ${attempt}); retrying in 15 seconds:`, error);
+      // Discard stale MySQL sockets after a fatal protocol disconnect.
+      await resetPool();
+      await checkDatabaseTcpReachability();
       await sleep(15_000);
     }
   }
