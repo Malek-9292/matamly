@@ -7,9 +7,13 @@ on:
       - feature/unified-android-cashier
     paths:
       - "client/**"
+      - "server/**"
+      - "shared/**"
+      - "drizzle/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "vite.config.ts"
+      - "tsconfig.json"
       - ".github/workflows/pwa-build.yml"
   pull_request:
     branches:
