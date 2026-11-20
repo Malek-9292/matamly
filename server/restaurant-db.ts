@@ -75,8 +75,34 @@ export function getPool() {
     timezone: "Z",
   };
 
-  pool = mysql.createPool(options);
-  return pool;
+  const created = mysql.createPool(options);
+
+  // Enzonic's free MySQL compute can sleep after inactivity and close idle
+  // sockets. mysql2 removes a failed socket, but callers may keep reusing this
+  // pool instance. Invalidate the whole pool on fatal connection errors so the
+  // next request creates a fresh TLS connection.
+  const invalidateIfCurrent = (error: unknown) => {
+    const details = error as { fatal?: boolean; code?: string } | null;
+    if (!details || (!details.fatal && ![
+      "PROTOCOL_CONNECTION_LOST",
+      "ECONNRESET",
+      "EPIPE",
+      "ETIMEDOUT",
+      "PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR",
+    ].includes(String(details.code || "")))) return;
+    if (pool === created) {
+      pool = null;
+      console.warn("[Database] Invalidated stale MySQL pool after a fatal connection error");
+    }
+  };
+
+  created.on("connection", (connection) => {
+    connection.on("error", invalidateIfCurrent);
+  });
+  created.on("error", invalidateIfCurrent);
+
+  pool = created;
+  return created;
 }
 
 export async function resetPool() {
