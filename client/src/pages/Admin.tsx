@@ -32,7 +32,7 @@ async function extractZipImages(file: File): Promise<File[]> {
     const localOffset = view.getUint32(offset + 42, true);
     const name = decoder.decode(new Uint8Array(buffer, offset + 46, nameLength)).replace(/\\/g, "/");
     offset += 46 + nameLength + extraLength + commentLength;
-    if (!/\\.(jpe?g|png|webp)$/i.test(name) || name.endsWith("/")) continue;
+    if (!/\.(jpe?g|png|webp)$/i.test(name) || name.endsWith("/")) continue;
     if (view.getUint32(localOffset, true) !== 0x04034b50) continue;
     const localNameLength = view.getUint16(localOffset + 26, true);
     const localExtraLength = view.getUint16(localOffset + 28, true);
