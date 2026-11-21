@@ -18,6 +18,9 @@ type Order = {
   address: string;
   notes: string;
   payment: string;
+  paymentStatus: "pending" | "paid" | "failed" | "refunded";
+  paymentConfirmedAt: string | null;
+  paymentConfirmedBy: string;
   serviceMode: "pickup" | "delivery";
   status: "new" | "processing" | "ready" | "completed" | "cancelled";
   printStatus: "pending" | "printing" | "printed" | "failed" | "none";
@@ -124,6 +127,20 @@ export default function Cashier() {
       await load(true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر تحديث الطلب"); }
   };
+  const confirmPayment = async (id: number) => {
+    if (!window.confirm("هل تأكدت من استلام المبلغ بنجاح؟")) return;
+    try {
+      const response = await fetch(`/api/orders/${id}/payment`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "paid" }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "تعذر تأكيد الدفع");
+      await load(true);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر تأكيد الدفع"); }
+  };
+
   const reprint = async (id: number) => {
     try {
       const response = await fetch(`/api/orders/${id}/reprint`, { method: "POST" });
@@ -161,9 +178,10 @@ export default function Cashier() {
         <div className="order-head"><div><span className="eyebrow">طلب رقم {order.orderNumber}</span><h2>{order.customer.name}</h2><p><Clock3 size={13}/> {new Date(order.createdAt).toLocaleString("ar-KW")} · {order.customer.phone}</p></div><span className={`order-status status-${order.status}`}>{statusLabels[order.status]}</span></div>
         <div className="order-meta"><strong>{order.serviceMode === "delivery" ? "توصيل" : "استلام من المطعم"}</strong>{order.serviceMode === "delivery" && <span>{order.zone || "بدون منطقة"} · {order.address || "بدون عنوان"}</span>}{order.notes && <span>ملاحظات: {order.notes}</span>}<span className={`print-state print-${order.printStatus}`}>{printLabels[order.printStatus]}{order.printError ? ` — ${order.printError}` : ""}</span></div>
         <div className="order-items">{order.items.map((item, index) => <div className="cashier-item" key={`${order.id}-${index}`}><div><strong>{item.qty} × {item.name}</strong>{item.choices?.length ? <small>{item.choices.join("، ")}</small> : null}</div><span>{money(item.price * item.qty)}</span></div>)}</div>
-        <div className="order-total"><div><span>الطعام {money(order.foodTotal)}</span><span>التوصيل {money(order.deliveryFee)}</span><span>الدفع: {order.payment || "عند الاستلام"}</span></div><strong>{money(order.total)}</strong></div>
+        <div className="order-total"><div><span>الطعام {money(order.foodTotal)}</span><span>التوصيل {money(order.deliveryFee)}</span><span>طريقة الدفع: {order.payment || "كاش عند الاستلام"}</span><span className={order.paymentStatus === "paid" ? "payment-chip payment-paid" : "payment-chip payment-pending"}>حالة الدفع: {order.paymentStatus === "paid" ? "مدفوع" : order.paymentStatus === "failed" ? "فشل الدفع" : order.paymentStatus === "refunded" ? "مسترد" : "بانتظار التحصيل"}</span></div><strong>{money(order.total)}</strong></div>
         <div className="order-actions">
           {order.status === "new" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "processing")}><ChefHat size={17}/> بدء التجهيز</button>}
+          {order.paymentStatus !== "paid" && order.paymentStatus !== "refunded" && <button className="primary-btn" onClick={() => void confirmPayment(order.id)}><Check size={17}/> تأكيد استلام المبلغ</button>}
           <button className="outline-btn" onClick={() => void reprint(order.id)}><Printer size={17}/> إعادة طباعة</button>
           <button className="outline-btn" onClick={() => setPrintId(order.id)}>طباعة عبر نظام التشغيل</button>
           {order.status === "processing" && <button className="primary-btn" onClick={() => void updateStatus(order.id, "ready")}>جاهز</button>}
