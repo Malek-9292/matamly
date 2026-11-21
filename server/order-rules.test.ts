@@ -42,6 +42,13 @@ describe("prepareOrder", () => {
     expect(above.order.total).toBe(2.5);
   });
 
+  it("allows driver KNET for delivery and rejects it for pickup", () => {
+    const delivery = prepareOrder({ customer, serviceMode: "delivery", areaId: 4, addressParts, payment: "KNET مع السائق", items: [{ id: 2, qty: 8 }] }, menu, areas, groups);
+    expect(delivery.ok).toBe(true);
+    const pickup = prepareOrder({ customer, serviceMode: "pickup", payment: "KNET مع السائق", items: [{ id: 2, qty: 8 }] }, menu, areas, groups);
+    expect(pickup.ok).toBe(false);
+  });
+
   it("uses the group rule and rejects inactive areas", () => {
     const grouped = prepareOrder({ customer, serviceMode: "التوصيل", areaId: 5, addressParts, items: [{ id: 2, qty: 8 }] }, menu, areas, groups);
     expect(grouped.ok).toBe(true);

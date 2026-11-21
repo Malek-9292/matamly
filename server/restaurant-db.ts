@@ -112,7 +112,8 @@ export function getPool() {
   created.on("connection", (connection) => {
     connection.on("error", invalidateIfCurrent);
   });
-  created.on("error", invalidateIfCurrent);
+  // mysql2 emits pool-level "error" at runtime, although its promise Pool typings omit this event.
+  created.on("error" as any, invalidateIfCurrent);
 
   pool = created;
   return created;
@@ -170,6 +171,10 @@ export async function migrate(db = getPool()) {
   if (!(await applied(db, "0004_universal_print"))) {
     await applySqlFile(db, "0004_universal_print.sql");
     await db.query("INSERT INTO schema_migrations (id) VALUES ('0004_universal_print')");
+  }
+  if (!(await applied(db, "0005_order_payment_status"))) {
+    await applySqlFile(db, "0005_order_payment_status.sql");
+    await db.query("INSERT INTO schema_migrations (id) VALUES ('0005_order_payment_status')");
   }
   for (const table of ["users", "schema_migrations", "app_settings", "documents", "delivery_areas", "delivery_groups", "delivery_group_areas", "order_counters", "orders", "order_items", "print_jobs", "print_devices", "print_printers", "print_job_events", "staff_sessions", "customer_accounts", "customer_sessions", "customer_session_events", "customer_addresses"]) {
     await db.query(`ALTER TABLE \`${table}\` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
@@ -492,6 +497,9 @@ export type PublicOrder = {
   address: string;
   notes: string;
   payment: string;
+  paymentStatus: "pending" | "paid" | "failed" | "refunded";
+  paymentConfirmedAt: string | null;
+  paymentConfirmedBy: string;
   serviceMode: "pickup" | "delivery";
   status: "new" | "processing" | "ready" | "completed" | "cancelled";
   printStatus: "pending" | "printing" | "printed" | "failed" | "none";
@@ -518,6 +526,9 @@ function mapOrder(row: RowDataPacket, items: RowDataPacket[], job?: RowDataPacke
     address: String(row.address || ""),
     notes: String(row.notes || ""),
     payment: String(row.payment || ""),
+    paymentStatus: String(row.paymentStatus || "pending") as PublicOrder["paymentStatus"],
+    paymentConfirmedAt: row.paymentConfirmedAt ? new Date(row.paymentConfirmedAt).toISOString() : null,
+    paymentConfirmedBy: String(row.paymentConfirmedBy || ""),
     serviceMode: row.serviceMode,
     status: row.status,
     printStatus: job ? job.status : "none",
@@ -601,6 +612,16 @@ const statuses = new Set(["new", "processing", "ready", "completed", "cancelled"
 export async function updateOrderStatus(id: number, status: string) {
   if (!statuses.has(status)) throw new RestaurantError("حالة الطلب غير صحيحة");
   const [result] = await getPool().query<ResultSetHeader>("UPDATE orders SET status = ?, updatedAt = ? WHERE id = ?", [status, new Date(), id]);
+  if (!result.affectedRows) throw new RestaurantError("الطلب غير موجود", 404);
+  return loadOrder(getPool(), id);
+}
+
+export async function confirmOrderPayment(id: number, confirmedBy: string) {
+  const now = new Date();
+  const [result] = await getPool().query<ResultSetHeader>(
+    "UPDATE orders SET paymentStatus = 'paid', paymentConfirmedAt = ?, paymentConfirmedBy = ?, updatedAt = ? WHERE id = ?",
+    [now, confirmedBy.slice(0, 80), now, id],
+  );
   if (!result.affectedRows) throw new RestaurantError("الطلب غير موجود", 404);
   return loadOrder(getPool(), id);
 }

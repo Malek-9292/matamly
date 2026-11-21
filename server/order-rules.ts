@@ -68,7 +68,10 @@ export function prepareOrder(
   }));
   const foodTotal = money(items.reduce((sum, item) => sum + item.price * item.qty, 0));
   const notes = cleanText(body.notes, 500);
-  const payment = cleanText(body.payment, 60) || "الدفع عند الاستلام";
+  const payment = cleanText(body.payment, 60) || "كاش عند الاستلام";
+  if (payment === "KNET مع السائق" && serviceMode !== "delivery") {
+    return { ok: false, error: "الدفع بجهاز KNET مع السائق متاح للتوصيل فقط" };
+  }
 
   if (serviceMode === "pickup") {
     return {

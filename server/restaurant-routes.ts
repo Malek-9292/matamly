@@ -41,6 +41,7 @@ import {
   resetPool,
   saveSettings,
   updateOrderStatus,
+  confirmOrderPayment,
 } from "./restaurant-db";
 
 export { initRestaurant };
@@ -197,6 +198,16 @@ export function registerRestaurantRoutes(app: express.Express) {
     if (!role) return res.status(401).json({ ok: false });
     try { res.json({ ok: true, order: await updateOrderStatus(Number(req.params.id), cleanText(req.body?.status, 20)) }); }
     catch (error) { await sendError(res, error); }
+  });
+
+  app.patch("/api/orders/:id/payment", async (req, res) => {
+    const role = await roleOf(req);
+    if (!role) return res.status(401).json({ ok: false });
+    if (req.body?.status !== "paid") return res.status(400).json({ ok: false, message: "حالة الدفع غير صحيحة" });
+    try {
+      const order = await confirmOrderPayment(Number(req.params.id), role);
+      return res.json({ ok: true, order });
+    } catch (error) { return sendError(res, error); }
   });
 
   app.post("/api/orders/:id/reprint", async (req, res) => {
