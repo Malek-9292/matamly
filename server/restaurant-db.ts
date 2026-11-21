@@ -176,6 +176,10 @@ export async function migrate(db = getPool()) {
     await applySqlFile(db, "0005_order_payment_status.sql");
     await db.query("INSERT INTO schema_migrations (id) VALUES ('0005_order_payment_status')");
   }
+  if (!(await applied(db, "0006_kuwait_delivery_areas"))) {
+    await applySqlFile(db, "0006_kuwait_delivery_areas.sql");
+    await db.query("INSERT INTO schema_migrations (id) VALUES ('0006_kuwait_delivery_areas')");
+  }
   for (const table of ["users", "schema_migrations", "app_settings", "documents", "delivery_areas", "delivery_groups", "delivery_group_areas", "order_counters", "orders", "order_items", "print_jobs", "print_devices", "print_printers", "print_job_events", "staff_sessions", "customer_accounts", "customer_sessions", "customer_session_events", "customer_addresses"]) {
     await db.query(`ALTER TABLE \`${table}\` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
   }
@@ -314,7 +318,7 @@ export async function initRestaurant() {
     }
     if ((await areaCount(db)) === 0) {
       const zones = JSON.parse(await readFile(path.join(process.cwd(), "server", "seed", "default-zones.json"), "utf8")) as { name: string; fee: number }[];
-      await insertAreas(db, zones.map((zone) => ({ name: zone.name, fee: Number(zone.fee) || 0, minimumOrder: 3 })));
+      await insertAreas(db, zones.map((zone) => ({ name: zone.name, fee: Number(zone.fee) || 0, minimumOrder: 0 })));
     }
     await ensureDefaults(db);
     await saveDocument(db, "import_complete", "1");
