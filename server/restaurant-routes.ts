@@ -296,6 +296,7 @@ export function registerRestaurantRoutes(app: express.Express) {
   });
 
   app.get("/api/delivery-areas", async (_req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
     try {
       const { resolved } = await listAreaModel();
       res.json({ areas: resolved.filter((area) => area.available).map((area) => ({ id: area.id, name: area.name, fee: area.deliveryFee, minimumOrder: area.minimumOrder, groupName: area.groupName })) });
