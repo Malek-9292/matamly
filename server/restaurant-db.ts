@@ -318,7 +318,7 @@ export async function initRestaurant() {
     }
     if ((await areaCount(db)) === 0) {
       const zones = JSON.parse(await readFile(path.join(process.cwd(), "server", "seed", "default-zones.json"), "utf8")) as { name: string; fee: number }[];
-      await insertAreas(db, zones.map((zone) => ({ name: zone.name, fee: Number(zone.fee) || 0, minimumOrder: 3 })));
+      await insertAreas(db, zones.map((zone) => ({ name: zone.name, fee: Number(zone.fee) || 0, minimumOrder: 0 })));
     }
     await ensureDefaults(db);
     await saveDocument(db, "import_complete", "1");
