@@ -315,3 +315,22 @@ button,a,.product-card,.cashier-order,.admin-sidebar{transition:background-color
 
 /* ضغط المساحة أعلى عنوان الأقسام في تصميم الموبايل الحالي */
 @media(max-width:700px){.layout-mudir .menu-section{padding-top:0!important}.layout-mudir .menu-section .section-heading{margin-top:0!important;margin-bottom:4px!important;padding-top:0!important;padding-bottom:0!important;gap:2px!important}.layout-mudir .menu-section .section-heading h2{margin-top:0!important;line-height:1.15!important}.layout-mudir .menu-section .category-cards{margin-top:0!important;padding-top:0!important}}
+
+/* Customer fulfillment and minimum-order guidance */
+.service-strip .delivery-selection{display:grid;gap:7px;justify-items:center;width:min(460px,100%)}
+.delivery-selection label,.cart-service-panel label{display:grid;gap:6px;width:100%;max-width:420px;font-weight:700;color:var(--olive)}
+.delivery-selection select,.cart-service-panel select{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);padding:11px 13px;font:inherit}
+.delivery-rule-note{margin:4px 0;color:var(--olive);font-size:12px;text-align:center;line-height:1.7}
+.cart-service-panel{display:grid;gap:11px;padding:14px;margin:4px 0 16px;border:1px solid var(--line);border-radius:12px;background:#f8f7f1;color:var(--olive)}
+.cart-service-switch{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.cart-service-switch button{border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--olive);padding:10px 8px;font:inherit;font-size:12px;font-weight:700}
+.cart-service-switch button.active{background:var(--olive);color:#fff;border-color:var(--olive)}
+.cart-service-switch button:disabled{opacity:.45;cursor:not-allowed}
+.minimum-success{margin:0;padding:9px 11px;border-radius:8px;background:#e9f4e8;color:#27633a;font-size:12px;line-height:1.6}
+.payment-chip.payment-paid{background:#e4f3e6;color:#226a37}
+.payment-chip.payment-pending{background:#fff0d8;color:#85520b}
+@media(max-width:700px){
+ .service-strip .delivery-selection{display:grid!important;width:100%;gap:7px}
+ .delivery-selection label{max-width:100%}
+ .cart-service-panel{padding:12px}
+}
