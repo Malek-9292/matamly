@@ -112,7 +112,8 @@ export function getPool() {
   created.on("connection", (connection) => {
     connection.on("error", invalidateIfCurrent);
   });
-  created.on("error", invalidateIfCurrent);
+  // mysql2 emits pool-level "error" at runtime, although its promise Pool typings omit this event.
+  created.on("error" as any, invalidateIfCurrent);
 
   pool = created;
   return created;
