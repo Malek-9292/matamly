@@ -38,6 +38,7 @@ import {
   saveGroup,
   saveJsonDocument,
   saveMenu,
+  resetPool,
   saveSettings,
   updateOrderStatus,
 } from "./restaurant-db";
@@ -120,6 +121,36 @@ async function sendError(res: express.Response, error: unknown) {
   if (error instanceof RestaurantError) return res.status(error.status).json({ ok: false, message: error.message });
   console.error(error);
   return res.status(500).json({ ok: false, message: "تعذر تنفيذ العملية" });
+}
+
+function isTransientDatabaseError(error: unknown) {
+  const code = String((error as { code?: string } | null)?.code || "");
+  return ["PROTOCOL_CONNECTION_LOST", "ECONNRESET", "EPIPE", "ETIMEDOUT", "PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR", "ECONNREFUSED"].includes(code);
+}
+
+async function saveMenuImageBatch(updates: { id: number; image: string }[]) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      // Re-read the latest menu on every attempt, then apply the same image
+      // updates. This makes retry safe even if MySQL committed before the
+      // connection dropped and the client never received the acknowledgement.
+      const products = await getMenu();
+      for (const item of updates) {
+        const product = products.find((entry: { id?: number }) => Number(entry.id) === Number(item.id));
+        if (product) product.image = item.image;
+      }
+      await saveMenu(products);
+      return updates.filter(item => products.some((entry: { id?: number }) => Number(entry.id) === Number(item.id))).length;
+    } catch (error) {
+      lastError = error;
+      if (!isTransientDatabaseError(error) || attempt === 3) throw error;
+      console.warn(`[Menu image upload] Temporary database disconnect; retrying batch (attempt ${attempt + 1}/3)`);
+      await resetPool();
+      await new Promise(resolve => setTimeout(resolve, attempt * 1200));
+    }
+  }
+  throw lastError;
 }
 
 export function registerRestaurantRoutes(app: express.Express) {
@@ -233,15 +264,7 @@ export function registerRestaurantRoutes(app: express.Express) {
       return res.status(400).json({ ok: false, message: "ملف صورة غير صالح أو حجمه كبير" });
     }
     try {
-      const products = await getMenu();
-      let updated = 0;
-      for (const item of updates) {
-        const product = products.find((entry: { id?: number }) => Number(entry.id) === Number(item.id));
-        if (!product) continue;
-        product.image = item.image;
-        updated++;
-      }
-      await saveMenu(products);
+      const updated = await saveMenuImageBatch(updates);
       res.json({ ok: true, updated });
     } catch (error) { await sendError(res, error); }
   });
