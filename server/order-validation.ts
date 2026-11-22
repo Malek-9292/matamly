@@ -5,6 +5,7 @@ export type MenuProduct = {
   price: number;
   options?: string[];
   customizationGroups?: { id: string; name: string; required?: boolean; selection?: "single" | "multiple"; hidden?: boolean; options: { id: string; name: string; price?: number }[] }[];
+  customizationsHidden?: boolean;
   category?: string;
   hidden?: boolean;
 };
@@ -57,10 +58,11 @@ export function normalizeOrderItems(
       if (!name || !Number.isFinite(price) || price < 0 || price > 1000) {
         return { items: [], error: "بيانات أحد الأصناف غير صالحة في قائمة المطعم" };
       }
+      if (product.customizationsHidden && (legacyChoices.length || submittedCustomizations.length)) return { items: [], error: `تخصيصات صنف ${name} مخفية حالياً. حدّث القائمة.` };
       const allowedChoices = Array.isArray(product.options) ? product.options : [];
       if (legacyChoices.some((choice) => !allowedChoices.includes(choice))) return { items: [], error: `اختيارات صنف ${name} تغيرت. حدّث القائمة وحاول مرة أخرى.` };
       let extraPrice = 0;
-      const groups = Array.isArray(product.customizationGroups) ? product.customizationGroups : [];
+      const groups = Array.isArray(product.customizationGroups) ? product.customizationGroups.filter(group => group && typeof group.id === "string" && Array.isArray(group.options)) : [];
       const seenGroups = new Set<string>();
       for (const rawSelection of submittedCustomizations) {
         if (!rawSelection || typeof rawSelection !== "object") return { items: [], error: "بيانات التخصيص غير صحيحة" };
