@@ -4,6 +4,7 @@ export type MenuProduct = {
   description?: string;
   price: number;
   options?: string[];
+  customizationGroups?: { id: string; name: string; required?: boolean; selection?: "single" | "multiple"; hidden?: boolean; options: { id: string; name: string; price?: number }[] }[];
   category?: string;
   hidden?: boolean;
 };
@@ -14,6 +15,7 @@ export type SubmittedOrderItem = {
   qty?: unknown;
   price?: unknown;
   choices?: unknown;
+  customizations?: unknown;
 };
 
 export type NormalizedOrderItem = {
@@ -42,12 +44,10 @@ export function normalizeOrderItems(
     if (!Number.isInteger(qty) || qty < 1 || qty > 50) {
       return { items: [], error: "كمية أحد الأصناف غير صحيحة" };
     }
-    const choices = Array.isArray(raw?.choices)
-      ? raw.choices.slice(0, 12).map((choice) => cleanText(choice, 80))
-      : [];
-    if (choices.some((choice) => !choice)) {
-      return { items: [], error: "أحد الاختيارات غير صحيح" };
-    }
+    const legacyChoices = Array.isArray(raw?.choices) ? raw.choices.slice(0, 12).map((choice) => cleanText(choice, 120)) : [];
+    if (legacyChoices.some((choice) => !choice)) return { items: [], error: "أحد الاختيارات غير صحيح" };
+    const submittedCustomizations = Array.isArray(raw?.customizations) ? raw.customizations.slice(0, 40) : [];
+    const choices = [...legacyChoices];
 
     if (menu.length > 0) {
       const product = menu.find((candidate) => String(candidate.id) === String(raw?.id));
@@ -58,10 +58,29 @@ export function normalizeOrderItems(
         return { items: [], error: "بيانات أحد الأصناف غير صالحة في قائمة المطعم" };
       }
       const allowedChoices = Array.isArray(product.options) ? product.options : [];
-      if (choices.some((choice) => !allowedChoices.includes(choice))) {
-        return { items: [], error: `اختيارات صنف ${name} تغيرت. حدّث القائمة وحاول مرة أخرى.` };
+      if (legacyChoices.some((choice) => !allowedChoices.includes(choice))) return { items: [], error: `اختيارات صنف ${name} تغيرت. حدّث القائمة وحاول مرة أخرى.` };
+      let extraPrice = 0;
+      const groups = Array.isArray(product.customizationGroups) ? product.customizationGroups : [];
+      const seenGroups = new Set<string>();
+      for (const rawSelection of submittedCustomizations) {
+        if (!rawSelection || typeof rawSelection !== "object") return { items: [], error: "بيانات التخصيص غير صحيحة" };
+        const selection = rawSelection as Record<string, unknown>;
+        const group = groups.find((candidate) => candidate.id === String(selection.groupId || ""));
+        if (!group || group.hidden) return { items: [], error: `تخصيص صنف ${name} لم يعد متاحاً. حدّث القائمة.` };
+        const option = group.options.find((candidate) => candidate.id === String(selection.optionId || ""));
+        if (!option) return { items: [], error: `اختيار في تخصيص صنف ${name} غير متاح.` };
+        if (group.selection !== "multiple" && seenGroups.has(group.id)) return { items: [], error: `اختر اختياراً واحداً فقط من ${group.name}.` };
+        seenGroups.add(group.id);
+        const optionPrice = Number(option.price) || 0;
+        if (!Number.isFinite(optionPrice) || optionPrice < 0 || optionPrice > 1000) return { items: [], error: "سعر أحد التخصيصات غير صالح." };
+        extraPrice += optionPrice;
+        choices.push(`${cleanText(group.name, 80)}: ${cleanText(option.name, 80)}${optionPrice > 0 ? ` (+${optionPrice.toFixed(3)} د.ك)` : ""}`);
       }
-      items.push({ productId: product.id, name, category: cleanText(product.category, 100), description: cleanText(product.description, 240), qty, price, choices });
+      for (const group of groups) {
+        if (!group.hidden && group.required && !submittedCustomizations.some((entry) => entry && typeof entry === "object" && String((entry as Record<string, unknown>).groupId || "") === group.id)) return { items: [], error: `يرجى اختيار ${group.name} لصنف ${name}.` };
+      }
+      if (submittedCustomizations.length && !groups.length) return { items: [], error: "التخصيصات المرسلة غير متاحة لهذا الصنف." };
+      items.push({ productId: product.id, name, category: cleanText(product.category, 100), description: cleanText(product.description, 240), qty, price: Number((price + extraPrice).toFixed(3)), choices });
       continue;
     }
 
